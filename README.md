@@ -1,15 +1,12 @@
 # ComfyUI-LatentSyncWrapper
 
-Unofficial [LatentSync](https://github.com/bytedance/LatentSync) implementation for [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
+Unofficial [LatentSync](https://github.com/bytedance/LatentSync) implementation for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) on windows.
 
 This node provides lip-sync capabilities in ComfyUI using ByteDance's LatentSync model. It allows you to synchronize video lips with audio input.
 
 ![image](https://github.com/user-attachments/assets/678f5319-90b1-4c0a-b7ae-d3f01295157f)
 
-
 https://github.com/user-attachments/assets/8e7ec7ad-ef88-4705-9899-495680360075
-
-
 
 ## Prerequisites
 
@@ -28,8 +25,6 @@ Before installing this node, you must install the following in order:
 
 3. FFmpeg installed on your system:
    - Windows: Download from [here](https://github.com/BtbN/FFmpeg-Builds/releases) and add to system PATH
-   - Linux: `sudo apt install ffmpeg`
-   - macOS: `brew install ffmpeg`
 
 ## Installation
 
