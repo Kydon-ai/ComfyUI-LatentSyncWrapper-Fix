@@ -18,7 +18,7 @@ Before installing this node, you must install the following in order:
    - [ComfyUI_AceNodes](https://github.com/hay86/ComfyUI_AceNodes) - Required for video in and out processing
    ```bash
    cd ComfyUI/custom_nodes
-   git clone https://github.com/hay86/ComfyUI_AceNodes
+   git clone https://github.com/hay86/ComfyUI_AceNodes.git
    cd ComfyUI_AceNodes
    pip install -r requirements.txt
    ```
@@ -33,7 +33,7 @@ Only proceed with installation after confirming all prerequisites are installed 
 1. Clone this repository into your ComfyUI custom_nodes directory:
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/ShymuelRonen/ComfyUI-LatentSyncWrapper
+git clone https://github.com/ShymuelRonen/ComfyUI-LatentSyncWrapper.git
 cd ComfyUI-LatentSyncWrapper
 pip install -r requirements.txt
 ```
