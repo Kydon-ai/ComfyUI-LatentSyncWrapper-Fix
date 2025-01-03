@@ -165,10 +165,12 @@ class LatentSyncNode:
             frames = torch.stack(images)
         else:
             frames = images
+        print(f"Initial frame count: {frames.shape[0]}")
 
         frames = (frames * 255).byte()
         if len(frames.shape) == 3:
             frames = frames.unsqueeze(0)
+        print(f"Frame count before writing video: {frames.shape[0]}")
 
         if isinstance(frames, torch.Tensor):
             frames = frames.cpu()
@@ -262,6 +264,7 @@ class LatentSyncNode:
 
             # Load the processed video back as frames
             processed_frames = io.read_video(output_video_path, pts_unit='sec')[0]  # [T, H, W, C]
+            print(f"Frame count after reading video: {processed_frames.shape[0]}")
             
             # Process frames following wav2lip.py pattern
             out_tensor_list = []
@@ -288,6 +291,7 @@ class LatentSyncNode:
 
             processed_frames = io.read_video(output_video_path, pts_unit='sec')[0]  # [T, H, W, C]
             processed_frames = processed_frames.float() / 255.0
+            print(f"Frame count after normalization: {processed_frames.shape[0]}")
 
             # Fix dimensions for VideoCombine compatibility
             if len(processed_frames.shape) == 3:  
@@ -298,6 +302,8 @@ class LatentSyncNode:
                 processed_frames = processed_frames.permute(1, 2, 0)  # Convert to HWC
             if processed_frames.shape[-1] == 4:  # If RGBA
                 processed_frames = processed_frames[..., :3]
+
+            print(f"Final frame count: {processed_frames.shape[0]}")
 
             print(f"Final shape: {processed_frames.shape}")
 
@@ -322,12 +328,74 @@ class LatentSyncNode:
 
         return (processed_frames,)
 
+class VideoLengthAdjuster:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+                    "images": ("IMAGE",),
+                    "audio": ("AUDIO", ),
+                    "mode": (["normal", "pingpong", "loop_to_audio"], {"default": "normal"}),
+                 },}
+
+    CATEGORY = "LatentSyncNode"
+    RETURN_TYPES = ("IMAGE", "AUDIO")  # Add AUDIO back
+    RETURN_NAMES = ("images", "audio")  # Add audio back
+    FUNCTION = "adjust"
+
+    def adjust(self, images, audio, mode):
+        if isinstance(images, list):
+            frames = len(images)
+        else:
+            frames = images.shape[0]
+            images = [images[i] for i in range(frames)]
+        
+        # Handle images as before
+        video_duration = frames / 25
+        waveform = audio["waveform"]
+        sample_rate = audio["sample_rate"]
+        if waveform.dim() == 3:
+            waveform = waveform.squeeze(0)
+            
+        # Add 1 second of silence to audio
+        silence_samples = sample_rate  # 1 second worth of samples
+        silence = torch.zeros((waveform.shape[0], silence_samples), dtype=waveform.dtype)
+        padded_waveform = torch.cat([waveform, silence], dim=1)
+        
+        # Create modified audio dict
+        padded_audio = {
+            "waveform": padded_waveform,
+            "sample_rate": sample_rate
+        }
+
+        audio_samples = padded_waveform.shape[1]
+        audio_duration = audio_samples / sample_rate
+
+        print(f"Video Length Adjuster Info:")
+        print(f"Video frames: {frames}")
+        print(f"Video duration: {video_duration:.2f} seconds")
+        print(f"Audio samples: {audio_samples}")
+        print(f"Audio sample rate: {sample_rate}")
+        print(f"Audio duration (with padding): {audio_duration:.2f} seconds")
+        
+        if mode == "pingpong":
+            backward_frames = images[-2:0:-1]
+            images = images + backward_frames
+            
+        if mode in ["pingpong", "loop_to_audio"] and audio_duration > video_duration:
+            frames_needed = int(audio_duration * 25)
+            complete_sequence = images
+            while len(images) < frames_needed:
+                images.extend(complete_sequence[:frames_needed-len(images)])
+
+        return (torch.stack(images), padded_audio)
 
 NODE_CLASS_MAPPINGS = {
     "D_LatentSyncNode": LatentSyncNode,
+    "D_VideoLengthAdjuster": VideoLengthAdjuster,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "D_LatentSyncNode": "LatentSync Node",
+    "D_VideoLengthAdjuster": "Video Length Adjuster",
 }
 
