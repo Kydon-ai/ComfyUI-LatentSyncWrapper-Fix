@@ -17,12 +17,14 @@ Before installing this node, you must install the following in order:
 
 1. [ComfyUI](https://github.com/comfyanonymous/ComfyUI) installed and working
 
-## Windows Installation Notes
-1. Install FFmpeg:
-   - Download from [FFmpeg Builds](https://github.com/BtbN/FFmpeg-Builds/releases)
-   - Extract to a folder
-   - Add the bin folder to system PATH
-   - Restart ComfyUI
+## Prerequisites
+
+Before installing this node, you must install the following in order:
+
+1. [ComfyUI](https://github.com/comfyanonymous/ComfyUI) installed and working
+2. Python 3.8-3.11 (mediapipe is not yet compatible with Python 3.12)
+3. FFmpeg installed on your system:
+   - Windows: Download from [here](https://github.com/BtbN/FFmpeg-Builds/releases) and add to system PATH
 
 2. If you get PYTHONPATH errors:
    - Make sure Python is in your system PATH
@@ -48,7 +50,7 @@ huggingface-hub
 omegaconf
 einops
 opencv-python
-mediapipe
+mediapipe>=0.10.8
 face-alignment
 decord
 ffmpeg-python
@@ -116,6 +118,16 @@ A complementary node that helps manage video length and synchronization with aud
 3. Connect both to Video Length Adjuster
 4. Video Length Adjuster → LatentSync Node
 5. LatentSync Node + Original Audio → Video Combine
+
+## Troubleshooting
+
+### mediapipe Installation Issues
+If you encounter mediapipe installation errors:
+1. Ensure you're using Python 3.8-3.11 (Check with `python --version`)
+2. If using Python 3.12, you'll need to downgrade to a compatible version
+3. Try installing mediapipe separately first:
+   ```bash
+   pip install mediapipe>=0.10.8
 
 ## Credits
 
