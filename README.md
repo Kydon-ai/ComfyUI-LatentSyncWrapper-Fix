@@ -50,20 +50,26 @@ ffmpeg-python
 safetensors
 soundfile
 ```
-## Note on Model Downloads
+## Model Setup
 
-On first use, the node will automatically download required model files from HuggingFace:
-- LatentSync UNet model
-- Whisper model for audio processing
-- You can also manualy download the models from HuggingFace repo: https://huggingface.co/chunyu-li/LatentSync, the checkpoints should appear as follows:
+The models can be obtained in two ways:
 
+### Option 1: Automatic Download (First Run)
+The node will attempt to automatically download required model files from HuggingFace on first use.
+If automatic download fails, use Option 2.
+
+### Option 2: Manual Download
+1. Visit the HuggingFace repo: https://huggingface.co/chunyu-li/LatentSync
+2. Download these files:
+   - `latentsync_unet.pt`
+   - `whisper/tiny.pt`
+3. Place them in the following structure:
+```bash
+ComfyUI/custom_nodes/ComfyUI-LatentSyncWrapper/checkpoints/
+├── latentsync_unet.pt
+└── whisper/
+    └── tiny.pt
 ```
-./checkpoints/
-|-- latentsync_unet.pt
-|-- whisper
-|   `-- tiny.pt
-```
-
 ## Usage
 
 1. Select an input video file
