@@ -128,9 +128,40 @@ def save_and_reload_frames(frames, temp_dir):
     print(f"Stacked min/max: {stacked.min()}, {stacked.max()}")
     return stacked.to(device='cpu', dtype=torch.float32)
 
+def setup_models():
+    cur_dir = get_ext_dir()
+    ckpt_dir = os.path.join(cur_dir, "checkpoints")
+    whisper_dir = os.path.join(ckpt_dir, "whisper")
+    
+    # Create directories if they don't exist
+    os.makedirs(ckpt_dir, exist_ok=True)
+    os.makedirs(whisper_dir, exist_ok=True)
+    
+    unet_path = os.path.join(ckpt_dir, "latentsync_unet.pt")
+    whisper_path = os.path.join(whisper_dir, "tiny.pt")
+    
+    if not (os.path.exists(unet_path) and os.path.exists(whisper_path)):
+        print("Downloading required model checkpoints... This may take a while.")
+        try:
+            from huggingface_hub import snapshot_download
+            snapshot_download(repo_id="chunyu-li/LatentSync",
+                            allow_patterns=["latentsync_unet.pt", "whisper/tiny.pt"],
+                            local_dir=ckpt_dir, local_dir_use_symlinks=False)
+            print("Model checkpoints downloaded successfully!")
+        except Exception as e:
+            print(f"Error downloading models: {str(e)}")
+            print("\nPlease download models manually:")
+            print("1. Visit: https://huggingface.co/chunyu-li/LatentSync")
+            print("2. Download: latentsync_unet.pt and whisper/tiny.pt")
+            print(f"3. Place them in: {ckpt_dir}")
+            print(f"   with whisper/tiny.pt in: {whisper_dir}")
+            raise RuntimeError("Model download failed. See instructions above.")
+
 class LatentSyncNode:
     def __init__(self):
         check_and_install_dependencies()
+        setup_models()
+
 
     @classmethod
     def INPUT_TYPES(s):
