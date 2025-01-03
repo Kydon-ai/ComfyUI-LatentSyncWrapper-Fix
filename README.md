@@ -66,7 +66,7 @@ On first use, the node will automatically download required model files from Hug
 
 ## Usage
 
-1. Select an input video file with AceNodes video loader
+1. Select an input video file
 2. Load an audio file using ComfyUI audio loader
 3. (Optional) Set a seed value for reproducible results
 4. Connect to the LatentSync node
