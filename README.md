@@ -10,13 +10,6 @@ This node provides lip-sync capabilities in ComfyUI using ByteDance's LatentSync
 https://github.com/user-attachments/assets/49c40cf4-5db1-46c5-99a4-7fbb2031c907
 
 
-
-## Prerequisites
-
-Before installing this node, you must install the following in order:
-
-1. [ComfyUI](https://github.com/comfyanonymous/ComfyUI) installed and working
-
 ## Prerequisites
 
 Before installing this node, you must install the following in order:
