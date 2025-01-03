@@ -170,7 +170,27 @@ class LatentSyncNode:
         if len(frames.shape) == 3:
             frames = frames.unsqueeze(0)
 
-        io.write_video(temp_video_path, frames.cpu(), fps=25, video_codec='h264')
+        if isinstance(frames, torch.Tensor):
+            frames = frames.cpu()
+        try:
+            io.write_video(temp_video_path, frames, fps=25, video_codec='h264')
+        except TypeError:
+            # Fallback for newer versions
+            import av
+            container = av.open(temp_video_path, mode='w')
+            stream = container.add_stream('h264', rate=25)
+            stream.width = frames.shape[2]
+            stream.height = frames.shape[1]
+            
+            for frame in frames:
+                frame = av.VideoFrame.from_ndarray(frame.numpy(), format='rgb24')
+                packet = stream.encode(frame)
+                container.mux(packet)
+            
+            # Flush stream
+            packet = stream.encode(None)
+            container.mux(packet)
+            container.close()
         video_path = normalize_path(temp_video_path)
 
         if not os.path.exists(ckpt_dir):
