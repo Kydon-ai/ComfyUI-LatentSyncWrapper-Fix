@@ -46,12 +46,13 @@ def read_json(filepath: str):
 
 def read_video(video_path: str, change_fps=True, use_decord=True):
     if change_fps:
-        temp_dir = "temp"
+        # Create temp directory next to the video file
+        temp_dir = os.path.join(os.path.dirname(video_path), "temp")
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
         os.makedirs(temp_dir, exist_ok=True)
         
-        # Properly quote and normalize paths
+        # Normalize paths for Windows
         video_path = os.path.normpath(video_path).replace('\\', '/')
         temp_video = os.path.join(temp_dir, 'video.mp4').replace('\\', '/')
         
