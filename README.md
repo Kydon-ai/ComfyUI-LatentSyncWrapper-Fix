@@ -19,7 +19,7 @@ Before installing this node, you must install the following in order:
 3. FFmpeg installed on your system:
 - Download from [here](https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip) to your root C:\ drive, extract it, and add 'C:\ffmpeg\bin' to system PATH
 
-2. If you get PYTHONPATH errors:
+4. If you get PYTHONPATH errors:
    - Make sure Python is in your system PATH
    - Try running ComfyUI as administrator
      
