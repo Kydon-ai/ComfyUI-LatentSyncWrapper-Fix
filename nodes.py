@@ -369,8 +369,8 @@ class VideoLengthAdjuster:
                  },}
 
     CATEGORY = "LatentSyncNode"
-    RETURN_TYPES = ("IMAGE", "AUDIO")  # Add AUDIO back
-    RETURN_NAMES = ("images", "audio")  # Add audio back
+    RETURN_TYPES = ("IMAGE",)  # Remove AUDIO
+    RETURN_NAMES = ("images",)  # Remove audio
     FUNCTION = "adjust"
 
     def adjust(self, images, audio, mode):
