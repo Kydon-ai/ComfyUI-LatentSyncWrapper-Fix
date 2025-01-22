@@ -176,8 +176,8 @@ class LatentSyncNode:
 
     CATEGORY = "LatentSyncNode"
 
-    RETURN_TYPES = ("IMAGE", )
-    RETURN_NAMES = ("images", )
+    RETURN_TYPES = ("IMAGE", "AUDIO")
+    RETURN_NAMES = ("images", "audio") 
     FUNCTION = "inference"
 
     def inference(self, images, audio, seed):
@@ -254,6 +254,12 @@ class LatentSyncNode:
             new_sample_rate = 16000
             waveform_16k = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=new_sample_rate)(waveform)
             waveform, sample_rate = waveform_16k, new_sample_rate
+
+        # Package resampled audio
+        resampled_audio = {
+            "waveform": waveform.unsqueeze(0),  # Add batch dim
+            "sample_rate": sample_rate
+        }
 
         audio_path = normalize_path(os.path.join(output_dir, f"latentsync_{output_name}_audio.wav"))
         torchaudio.save(audio_path, waveform, sample_rate)
@@ -360,7 +366,7 @@ class LatentSyncNode:
             traceback.print_exc()
             raise
 
-        return (processed_frames,)
+        return (processed_frames, resampled_audio)
 
 class VideoLengthAdjuster:
     @classmethod
@@ -371,7 +377,7 @@ class VideoLengthAdjuster:
                 "audio": ("AUDIO",),
                 "mode": (["normal", "pingpong", "loop_to_audio"], {"default": "normal"}),
                 "fps": ("FLOAT", {"default": 25.0, "min": 1.0, "max": 120.0}),
-                "pingpong_smoothing": ("INT", {"default": 2, "min": 0, "max": 10}),
+                "silent_padding_sec": ("FLOAT", {"default": 0.5, "min": 0.1, "max": 3.0, "step": 0.1}),
             }
         }
 
@@ -380,54 +386,62 @@ class VideoLengthAdjuster:
     RETURN_NAMES = ("images", "audio")
     FUNCTION = "adjust"
 
-    def adjust(self, images, audio, mode, fps=25.0, pingpong_smoothing=2):
-        # --- High-Precision Initialization ---
-        ctx = decimal.getcontext()
-        ctx.rounding = ROUND_UP
-        
-        # --- Audio Validation ---
+    def adjust(self, images, audio, mode, fps=25.0, silent_padding_sec=0.5):
         waveform = audio["waveform"].squeeze(0)
-        if waveform.numel() < 10:
-            raise ValueError("Audio input too short for processing")
+        sample_rate = int(audio["sample_rate"])
+        original_frames = [images[i] for i in range(images.shape[0])] if isinstance(images, torch.Tensor) else images.copy()
 
-        sample_rate = Decimal(str(audio["sample_rate"]))
-        fps_dec = Decimal(str(fps)).quantize(Decimal('1.000'))
+        if mode == "normal":
+            # Bypass video frames exactly
+            video_duration = len(original_frames) / fps
+            required_samples = int(video_duration * sample_rate)
+            
+            # Adjust audio to match video duration
+            if waveform.shape[1] >= required_samples:
+                adjusted_audio = waveform[:, :required_samples]  # Trim audio
+            else:
+                silence = torch.zeros((waveform.shape[0], required_samples - waveform.shape[1]), dtype=waveform.dtype)
+                adjusted_audio = torch.cat([waveform, silence], dim=1)  # Pad audio
+            
+            return (
+                torch.stack(original_frames),
+                {"waveform": adjusted_audio.unsqueeze(0), "sample_rate": sample_rate}
+            )
 
-        # --- Frame Preparation ---
-        original_frames = [images[i] for i in range(images.shape[0])]
-        original_count = len(original_frames)
+        elif mode == "pingpong":
+            # Add silent padding then pingpong loop
+            silence_samples = math.ceil(silent_padding_sec * sample_rate)
+            silence = torch.zeros((waveform.shape[0], silence_samples), dtype=waveform.dtype)
+            padded_audio = torch.cat([waveform, silence], dim=1)
+            total_duration = (waveform.shape[1] + silence_samples) / sample_rate
+            target_frames = math.ceil(total_duration * fps)
 
-        # --- Ping-Pong Processing ---
-        if mode == "pingpong":
-            reversed_frames = original_frames[::-1]
-            for i in range(int(pingpong_smoothing)):  # Convert to int
-                alpha = (i + 1) / (pingpong_smoothing + 1)
-                original_frames[-1 - i] = original_frames[-1 - i] * (1 - float(alpha)) + reversed_frames[i] * float(alpha)
-            frames = original_frames + reversed_frames[int(pingpong_smoothing):]  # Convert to int
-        else:
+            reversed_frames = original_frames[::-1][1:-1]  # Remove endpoints
+            frames = original_frames + reversed_frames
+            while len(frames) < target_frames:
+                frames += frames[:target_frames - len(frames)]
+            
+            return (
+                torch.stack(frames[:target_frames]),
+                {"waveform": padded_audio.unsqueeze(0), "sample_rate": sample_rate}
+            )
+
+        elif mode == "loop_to_audio":
+            # Add silent padding then simple loop
+            silence_samples = math.ceil(silent_padding_sec * sample_rate)
+            silence = torch.zeros((waveform.shape[0], silence_samples), dtype=waveform.dtype)
+            padded_audio = torch.cat([waveform, silence], dim=1)
+            total_duration = (waveform.shape[1] + silence_samples) / sample_rate
+            target_frames = math.ceil(total_duration * fps)
+
             frames = original_frames.copy()
-
-        # --- Integer Conversion for Indexing ---
-        audio_duration = Decimal(waveform.shape[1]) / sample_rate
-        exact_frames_needed = int((audio_duration * fps_dec).to_integral_value())  # Convert to int
-        final_video_duration = exact_frames_needed / float(fps_dec)  # Use float for duration
-        required_samples = int((final_video_duration * float(sample_rate)))  # Convert to int
-
-        # --- Frame Adjustment ---
-        current_frames = len(frames)
-        if current_frames < exact_frames_needed:
-            repeat_times = math.ceil(exact_frames_needed / current_frames)
-            frames = (frames * repeat_times)[:exact_frames_needed]  # Now using integers
-        elif current_frames > exact_frames_needed:
-            frames = frames[:exact_frames_needed]
-
-        # --- Audio Trimming ---
-        adjusted_audio = waveform[:, :required_samples]
-
-        return (
-            torch.stack(frames), 
-            {"waveform": adjusted_audio.unsqueeze(0), "sample_rate": int(sample_rate)}
-        )
+            while len(frames) < target_frames:
+                frames += original_frames[:target_frames - len(frames)]
+            
+            return (
+                torch.stack(frames[:target_frames]),
+                {"waveform": padded_audio.unsqueeze(0), "sample_rate": sample_rate}
+            )
 
 NODE_CLASS_MAPPINGS = {
     "D_LatentSyncNode": LatentSyncNode,
