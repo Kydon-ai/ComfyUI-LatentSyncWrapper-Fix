@@ -1,51 +1,7 @@
 {
   "last_node_id": 53,
-  "last_link_id": 65,
+  "last_link_id": 67,
   "nodes": [
-    {
-      "id": 43,
-      "type": "D_LatentSyncNode",
-      "pos": [
-        525.86328125,
-        730.9093627929688
-      ],
-      "size": [
-        315,
-        126
-      ],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 62
-        },
-        {
-          "name": "audio",
-          "type": "AUDIO",
-          "link": 63
-        }
-      ],
-      "outputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "links": [
-            40
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "D_LatentSyncNode"
-      },
-      "widgets_values": [
-        395,
-        "randomize"
-      ]
-    },
     {
       "id": 41,
       "type": "VHS_VideoCombine",
@@ -58,7 +14,7 @@
         701.3823852539062
       ],
       "flags": {},
-      "order": 5,
+      "order": 4,
       "mode": 0,
       "inputs": [
         {
@@ -69,7 +25,7 @@
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 61,
+          "link": 67,
           "shape": 7
         },
         {
@@ -127,14 +83,14 @@
       "type": "D_VideoLengthAdjuster",
       "pos": [
         179.75909423828125,
-        729.64453125
+        730.9093627929688
       ],
       "size": [
         298.8439636230469,
-        97.9259033203125
+        126
       ],
       "flags": {},
-      "order": 3,
+      "order": 2,
       "mode": 0,
       "inputs": [
         {
@@ -156,21 +112,31 @@
             62
           ],
           "slot_index": 0
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            66
+          ],
+          "slot_index": 1
         }
       ],
       "properties": {
         "Node name for S&R": "D_VideoLengthAdjuster"
       },
       "widgets_values": [
-        "pingpong"
+        "pingpong",
+        25,
+        0.5
       ]
     },
     {
       "id": 37,
       "type": "LoadAudio",
       "pos": [
-        176.8335723876953,
-        884.051513671875
+        178.4105682373047,
+        929.7828979492188
       ],
       "size": [
         306.3834533691406,
@@ -185,8 +151,6 @@
           "name": "AUDIO",
           "type": "AUDIO",
           "links": [
-            60,
-            63,
             65
           ],
           "slot_index": 0
@@ -202,40 +166,56 @@
       ]
     },
     {
-      "id": 51,
-      "type": "Reroute",
+      "id": 43,
+      "type": "D_LatentSyncNode",
       "pos": [
-        768.0172729492188,
-        886.380126953125
+        529.8057250976562,
+        730.9093627929688
       ],
       "size": [
-        75,
-        26
+        315,
+        126
       ],
       "flags": {},
-      "order": 2,
+      "order": 3,
       "mode": 0,
       "inputs": [
         {
-          "name": "",
-          "type": "*",
-          "link": 60
+          "name": "images",
+          "type": "IMAGE",
+          "link": 62
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 66
         }
       ],
       "outputs": [
         {
-          "name": "",
-          "type": "AUDIO",
+          "name": "images",
+          "type": "IMAGE",
           "links": [
-            61
+            40
           ],
           "slot_index": 0
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            67
+          ],
+          "slot_index": 1
         }
       ],
       "properties": {
-        "showOutputText": false,
-        "horizontal": false
-      }
+        "Node name for S&R": "D_LatentSyncNode"
+      },
+      "widgets_values": [
+        395,
+        "randomize"
+      ]
     },
     {
       "id": 40,
@@ -246,7 +226,7 @@
       ],
       "size": [
         345.1598815917969,
-        609.7614135742188
+        601.159912109375
       ],
       "flags": {},
       "order": 1,
@@ -331,36 +311,12 @@
       "IMAGE"
     ],
     [
-      60,
-      37,
-      0,
-      51,
-      0,
-      "*"
-    ],
-    [
-      61,
-      51,
-      0,
-      41,
-      1,
-      "AUDIO"
-    ],
-    [
       62,
       53,
       0,
       43,
       0,
       "IMAGE"
-    ],
-    [
-      63,
-      37,
-      0,
-      43,
-      1,
-      "AUDIO"
     ],
     [
       64,
@@ -377,16 +333,32 @@
       53,
       1,
       "AUDIO"
+    ],
+    [
+      66,
+      53,
+      1,
+      43,
+      1,
+      "AUDIO"
+    ],
+    [
+      67,
+      43,
+      1,
+      41,
+      1,
+      "AUDIO"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7247295000000006,
+      "scale": 0.7972024500000005,
       "offset": [
-        741.9613315668404,
-        -378.75064823606033
+        714.2874689569175,
+        -562.3335966581527
       ]
     },
     "workspace_info": {
@@ -398,8 +370,8 @@
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,
     "node_versions": {
-      "ComfyUI-LatentSyncWrapper": "unknown",
-      "comfy-core": "v0.3.10-2-g160ca08"
+      "ComfyUI-VideoHelperSuite": "cad87a17a3ff5e03c26cf55e4dc90397b5642503",
+      "comfy-core": "0.3.10"
     }
   },
   "version": 0.4
