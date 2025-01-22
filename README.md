@@ -103,6 +103,7 @@ A complementary node that helps manage video length and synchronization with aud
   - `normal`: Passes through video frames with added padding to prevent frame loss
   - `pingpong`: Creates a forward-backward loop of the video sequence
   - `loop_to_audio`: Extends video by repeating frames to match audio duration
+  - `silent_padding_sec`: Adjast video length to audio
 
 #### Usage:
 1. Place the Video Length Adjuster between your video input and the LatentSync node
@@ -111,7 +112,7 @@ A complementary node that helps manage video length and synchronization with aud
    - Use `normal` for standard lip-sync
    - Use `pingpong` for back-and-forth animation
    - Use `loop_to_audio` to match longer audio durations
-
+   - Use `silent_padding_sec`to adjast longer video durations
 #### Example Workflow:
 1. Load Video (Upload) → Video frames output
 2. Load Audio → Audio output
