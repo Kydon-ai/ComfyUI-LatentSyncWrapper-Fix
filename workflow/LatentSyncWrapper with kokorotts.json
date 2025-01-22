@@ -1,0 +1,523 @@
+{
+  "last_node_id": 21,
+  "last_link_id": 34,
+  "nodes": [
+    {
+      "id": 12,
+      "type": "Kokoro TextToSpeech",
+      "pos": [
+        2443.10009765625,
+        -174.2799835205078
+      ],
+      "size": [
+        270.45513916015625,
+        63.734310150146484
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 16,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            12,
+            13
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Kokoro TextToSpeech"
+      },
+      "widgets_values": [
+        "hey, you are watching Benji's Youtube channel! This is Text To Speech using Kokoro in ComfyUI.",
+        "am_adam"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "StringConstantMultiline",
+      "pos": [
+        1934.0001220703125,
+        -175.2259979248047
+      ],
+      "size": [
+        430.2449645996094,
+        663.8911743164062
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            16
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringConstantMultiline"
+      },
+      "widgets_values": [
+        "Okay, let's see. The user is encountering a TypeError: \"slice indices must be integers or None or have an __index__ method\" in their Python code. The error points to the line where they're slicing a list of frames using `[:exact_frames_needed]`. The problem is that `exact_frames_needed` is a Decimal type, not an integer, which causes the slice operation to fail because slice indices must be integers.\n\nFirst, I need to check where `exact_frames_needed` is defined. In the previous code, they were using the `decimal` module for high-precision calculations, which led to `exact_frames_needed` being a `Decimal` instance. However, slice indices in Python require integers, so using a Decimal here is invalid.",
+        false
+      ]
+    },
+    {
+      "id": 16,
+      "type": "D_LatentSyncNode",
+      "pos": [
+        3115.077880859375,
+        280.88446044921875
+      ],
+      "size": [
+        315,
+        102
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 31
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 32
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            26
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            27
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "D_LatentSyncNode"
+      },
+      "widgets_values": [
+        1782,
+        "randomize"
+      ]
+    },
+    {
+      "id": 1,
+      "type": "SetNode",
+      "pos": [
+        2509.84912109375,
+        47.076045989990234
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            33
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Set_autio_Kokorotts-1",
+      "properties": {
+        "previousName": ""
+      },
+      "widgets_values": [
+        "autio_Kokorotts-1"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 7,
+      "type": "PreviewAudio",
+      "pos": [
+        2793.28857421875,
+        -174.91542053222656
+      ],
+      "size": [
+        315,
+        76
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 12
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": [
+        null
+      ]
+    },
+    {
+      "id": 20,
+      "type": "D_VideoLengthAdjuster",
+      "pos": [
+        2749.6884765625,
+        281.15283203125
+      ],
+      "size": [
+        315,
+        126
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 30
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 33
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            31
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            32
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "D_VideoLengthAdjuster"
+      },
+      "widgets_values": [
+        "pingpong",
+        25,
+        0.5
+      ]
+    },
+    {
+      "id": 14,
+      "type": "VHS_LoadVideo",
+      "pos": [
+        2471.349365234375,
+        281.2410583496094
+      ],
+      "size": [
+        247.455078125,
+        427.63671875
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            30
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_LoadVideo"
+      },
+      "widgets_values": {
+        "video": "MMaudio_00012-audio.mp4",
+        "force_rate": 25,
+        "force_size": "Disabled",
+        "custom_width": 512,
+        "custom_height": 0,
+        "frame_load_cap": 0,
+        "skip_first_frames": 0,
+        "select_every_nth": 1,
+        "choose video to upload": "image",
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "force_rate": 25,
+            "frame_load_cap": 0,
+            "skip_first_frames": 0,
+            "select_every_nth": 1,
+            "filename": "MMaudio_00012-audio.mp4",
+            "type": "input",
+            "format": "video/mp4"
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        3484.551513671875,
+        280.7626647949219
+      ],
+      "size": [
+        604.5905151367188,
+        737.7269897460938
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 26
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 27,
+          "shape": 7
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 25,
+        "loop_count": 0,
+        "filename_prefix": "cosmos_output",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": false,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "cosmos_output_00004-audio.mp4",
+            "subfolder": "",
+            "type": "temp",
+            "format": "video/h264-mp4",
+            "frame_rate": 25,
+            "workflow": "cosmos_output_00004.png",
+            "fullpath": "E:\\ComfyUI_windows\\ComfyUI\\temp\\cosmos_output_00004-audio.mp4"
+          },
+          "muted": false
+        }
+      }
+    }
+  ],
+  "links": [
+    [
+      12,
+      12,
+      0,
+      7,
+      0,
+      "AUDIO"
+    ],
+    [
+      13,
+      12,
+      0,
+      1,
+      0,
+      "AUDIO"
+    ],
+    [
+      16,
+      13,
+      0,
+      12,
+      0,
+      "STRING"
+    ],
+    [
+      26,
+      16,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      27,
+      16,
+      1,
+      2,
+      1,
+      "AUDIO"
+    ],
+    [
+      30,
+      14,
+      0,
+      20,
+      0,
+      "IMAGE"
+    ],
+    [
+      31,
+      20,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      32,
+      20,
+      1,
+      16,
+      1,
+      "AUDIO"
+    ],
+    [
+      33,
+      1,
+      0,
+      20,
+      1,
+      "AUDIO"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Group",
+      "bounding": [
+        2444.486328125,
+        -68.68045806884766,
+        1703.4132080078125,
+        1253.5755615234375
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5445000000000004,
+      "offset": [
+        -1383.594692943873,
+        350.132466384834
+      ]
+    },
+    "node_versions": {
+      "ComfyUI-KokoroTTS": "86d82142b0e9f9ae0b36e991ae8c6cd97aedc815",
+      "ComfyUI-KJNodes": "28381262d197596eb2b4c9bcc361228a5dcef4cc",
+      "comfy-core": "0.3.10",
+      "ComfyUI-VideoHelperSuite": "cad87a17a3ff5e03c26cf55e4dc90397b5642503"
+    },
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0
+  },
+  "version": 0.4
+}
