@@ -4,7 +4,7 @@ Unofficial [LatentSync](https://github.com/bytedance/LatentSync) implementation 
 
 This node provides lip-sync capabilities in ComfyUI using ByteDance's LatentSync model. It allows you to synchronize video lips with audio input.
 
-![image](https://github.com/user-attachments/assets/89927488-e979-41da-a5a6-14c246683970)
+![image](https://github.com/user-attachments/assets/20971cd3-27c8-472e-92e9-afb95201bd23)
 
 
 
