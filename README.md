@@ -6,10 +6,10 @@ This node provides lip-sync capabilities in ComfyUI using ByteDance's LatentSync
 
 ![image](https://github.com/user-attachments/assets/20971cd3-27c8-472e-92e9-afb95201bd23)
 
+Add Kokoro option:
+![image](https://github.com/user-attachments/assets/dd3a1de3-eca5-4c11-9c18-80750d464424)
 
-
-https://github.com/user-attachments/assets/49c40cf4-5db1-46c5-99a4-7fbb2031c907
-
+https://github.com/user-attachments/assets/7a46a0dd-30d3-41d1-97c0-a56998636a28
 
 ## Prerequisites
 
