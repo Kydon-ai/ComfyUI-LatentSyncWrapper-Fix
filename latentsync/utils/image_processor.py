@@ -28,14 +28,12 @@ If you are enlarging the image, you should prefer to use INTER_LINEAR or INTER_C
 https://stackoverflow.com/questions/23853632/which-kind-of-interpolation-best-for-resizing-image
 """
 
-
 def load_fixed_mask(resolution: int) -> torch.Tensor:
     mask_image = cv2.imread(os.path.join(os.path.dirname(__file__), "mask.png"))
     mask_image = cv2.cvtColor(mask_image, cv2.COLOR_BGR2RGB)
     mask_image = cv2.resize(mask_image, (resolution, resolution), interpolation=cv2.INTER_AREA) / 255.0
     mask_image = rearrange(torch.from_numpy(mask_image), "h w c -> c h w")
     return mask_image
-
 
 class ImageProcessor:
     def __init__(self, resolution: int = 512, mask: str = "fix_mask", device: str = "cpu", mask_image=None):
@@ -64,7 +62,6 @@ class ImageProcessor:
                 )
                 self.face_mesh = None
             else:
-                # self.face_mesh = mp.solutions.face_mesh.FaceMesh(static_image_mode=True)  # Process single image
                 self.face_mesh = None
                 self.fa = None
 
@@ -72,7 +69,8 @@ class ImageProcessor:
         height, width, _ = image.shape
         results = self.face_mesh.process(image)
         if not results.multi_face_landmarks:  # Face not detected
-            raise RuntimeError("Face not detected")
+            print("Skipping frame: No face detected")
+            return None  # Return None instead of raising an error
         face_landmarks = results.multi_face_landmarks[0]  # Only use the first face in the image
         landmark_coordinates = [
             (int(landmark.x * width), int(landmark.y * height)) for landmark in face_landmarks.landmark
@@ -84,6 +82,9 @@ class ImageProcessor:
 
         if self.mask == "mouth" or self.mask == "face":
             landmark_coordinates = self.detect_facial_landmarks(image)
+            if landmark_coordinates is None:  # No face detected
+                return None, None, None  # Skip this frame
+
             if self.mask == "mouth":
                 surround_landmarks = mouth_surround_landmarks
             else:
@@ -103,6 +104,8 @@ class ImageProcessor:
         elif self.mask == "eye":
             mask = torch.ones((self.resolution, self.resolution))
             landmark_coordinates = self.detect_facial_landmarks(image)
+            if landmark_coordinates is None:  # No face detected
+                return None, None, None  # Skip this frame
             y = landmark_coordinates[195][1]
             mask[y:, :] = 0
             mask = mask.unsqueeze(0)
@@ -116,23 +119,29 @@ class ImageProcessor:
 
         return pixel_values, masked_pixel_values, mask
 
-    def affine_transform(self, image: torch.Tensor) -> np.ndarray:
-        # image = rearrange(image, "c h w-> h w c").numpy()
+    def affine_transform(self, image: torch.Tensor):
+        # Convert image to numpy array if necessary
+        if isinstance(image, torch.Tensor):
+            image = rearrange(image, "c h w -> h w c").numpy()
+
+        # Detect facial landmarks
         if self.fa is None:
-            landmark_coordinates = np.array(self.detect_facial_landmarks(image))
+            landmark_coordinates = self.detect_facial_landmarks(image)
+            if landmark_coordinates is None:  # No face detected
+                return None, None, None  # Skip this frame
             lm68 = mediapipe_lm478_to_face_alignment_lm68(landmark_coordinates)
         else:
             detected_faces = self.fa.get_landmarks(image)
-            if detected_faces is None:
-                raise RuntimeError("Face not detected")
+            if detected_faces is None:  # No face detected
+                return None, None, None  # Skip this frame
             lm68 = detected_faces[0]
 
+        # Perform affine transformation
         points = self.smoother.smooth(lm68)
         lmk3_ = np.zeros((3, 2))
         lmk3_[0] = points[17:22].mean(0)
         lmk3_[1] = points[22:27].mean(0)
         lmk3_[2] = points[27:36].mean(0)
-        # print(lmk3_)
         face, affine_matrix = self.restorer.align_warp_face(
             image.copy(), lmks3=lmk3_, smooth=True, border_mode="constant"
         )
@@ -143,7 +152,10 @@ class ImageProcessor:
 
     def preprocess_fixed_mask_image(self, image: torch.Tensor, affine_transform=False):
         if affine_transform:
-            image, _, _ = self.affine_transform(image)
+            result = self.affine_transform(image)
+            if result is None:  # No face detected
+                return None, None, None  # Skip this frame
+            image, _, _ = result
         else:
             image = self.resize(image)
         pixel_values = self.normalize(image / 255.0)
@@ -155,12 +167,23 @@ class ImageProcessor:
             images = torch.from_numpy(images)
         if images.shape[3] == 3:
             images = rearrange(images, "b h w c -> b c h w")
-        if self.mask == "fix_mask":
-            results = [self.preprocess_fixed_mask_image(image, affine_transform=affine_transform) for image in images]
-        else:
-            results = [self.preprocess_one_masked_image(image) for image in images]
 
-        pixel_values_list, masked_pixel_values_list, masks_list = list(zip(*results))
+        pixel_values_list, masked_pixel_values_list, masks_list = [], [], []
+        for image in images:
+            if self.mask == "fix_mask":
+                result = self.preprocess_fixed_mask_image(image, affine_transform=affine_transform)
+            else:
+                result = self.preprocess_one_masked_image(image)
+            
+            if result is not None:  # Skip frames where no face is detected
+                pixel_values, masked_pixel_values, mask = result
+                pixel_values_list.append(pixel_values)
+                masked_pixel_values_list.append(masked_pixel_values)
+                masks_list.append(mask)
+
+        if not pixel_values_list:  # If no valid frames were processed
+            return None, None, None
+
         return torch.stack(pixel_values_list), torch.stack(masked_pixel_values_list), torch.stack(masks_list)
 
     def process_images(self, images: Union[torch.Tensor, np.ndarray]):
@@ -176,13 +199,10 @@ class ImageProcessor:
         if self.face_mesh is not None:
             self.face_mesh.close()
 
-
 def mediapipe_lm478_to_face_alignment_lm68(lm478, return_2d=True):
     """
     lm478: [B, 478, 3] or [478,3]
     """
-    # lm478[..., 0] *= W
-    # lm478[..., 1] *= H
     landmarks_extracted = []
     for index in landmark_points_68:
         x = lm478[index][0]
@@ -190,134 +210,17 @@ def mediapipe_lm478_to_face_alignment_lm68(lm478, return_2d=True):
         landmarks_extracted.append((x, y))
     return np.array(landmarks_extracted)
 
-
 landmark_points_68 = [
-    162,
-    234,
-    93,
-    58,
-    172,
-    136,
-    149,
-    148,
-    152,
-    377,
-    378,
-    365,
-    397,
-    288,
-    323,
-    454,
-    389,
-    71,
-    63,
-    105,
-    66,
-    107,
-    336,
-    296,
-    334,
-    293,
-    301,
-    168,
-    197,
-    5,
-    4,
-    75,
-    97,
-    2,
-    326,
-    305,
-    33,
-    160,
-    158,
-    133,
-    153,
-    144,
-    362,
-    385,
-    387,
-    263,
-    373,
-    380,
-    61,
-    39,
-    37,
-    0,
-    267,
-    269,
-    291,
-    405,
-    314,
-    17,
-    84,
-    181,
-    78,
-    82,
-    13,
-    312,
-    308,
-    317,
-    14,
-    87,
+    162, 234, 93, 58, 172, 136, 149, 148, 152, 377, 378, 365, 397, 288, 323, 454, 389, 71, 63, 105, 66, 107, 336, 296, 334, 293, 301, 168, 197, 5, 4, 75, 97, 2, 326, 305, 33, 160, 158, 133, 153, 144, 362, 385, 387, 263, 373, 380, 61, 39, 37, 0, 267, 269, 291, 405, 314, 17, 84, 181, 78, 82, 13, 312, 308, 317, 14, 87,
 ]
-
 
 # Refer to https://storage.googleapis.com/mediapipe-assets/documentation/mediapipe_face_landmark_fullsize.png
 mouth_surround_landmarks = [
-    164,
-    165,
-    167,
-    92,
-    186,
-    57,
-    43,
-    106,
-    182,
-    83,
-    18,
-    313,
-    406,
-    335,
-    273,
-    287,
-    410,
-    322,
-    391,
-    393,
+    164, 165, 167, 92, 186, 57, 43, 106, 182, 83, 18, 313, 406, 335, 273, 287, 410, 322, 391, 393,
 ]
 
 face_surround_landmarks = [
-    152,
-    377,
-    400,
-    378,
-    379,
-    365,
-    397,
-    288,
-    435,
-    433,
-    411,
-    425,
-    423,
-    327,
-    326,
-    94,
-    97,
-    98,
-    203,
-    205,
-    187,
-    213,
-    215,
-    58,
-    172,
-    136,
-    150,
-    149,
-    176,
-    148,
+    152, 377, 400, 378, 379, 365, 397, 288, 435, 433, 411, 425, 423, 327, 326, 94, 97, 98, 203, 205, 187, 213, 215, 58, 172, 136, 150, 149, 176, 148,
 ]
 
 if __name__ == "__main__":
@@ -325,19 +228,14 @@ if __name__ == "__main__":
     video = cv2.VideoCapture("/mnt/bn/maliva-gen-ai-v2/chunyu.li/HDTF/original/val/RD_Radio57_000.mp4")
     while True:
         ret, frame = video.read()
-        # if not ret:
-        #     break
-
-        # cv2.imwrite("image.jpg", frame)
+        if not ret:
+            break
 
         frame = rearrange(torch.Tensor(frame).type(torch.uint8), "h w c ->  c h w")
-        # face, masked_face, _ = image_processor.preprocess_fixed_mask_image(frame, affine_transform=True)
-        face, _, _ = image_processor.affine_transform(frame)
+        result = image_processor.affine_transform(frame)
 
-        break
-
-    face = (rearrange(face, "c h w -> h w c").detach().cpu().numpy()).astype(np.uint8)
-    cv2.imwrite("face.jpg", face)
-
-    # masked_face = (rearrange(masked_face, "c h w -> h w c").detach().cpu().numpy()).astype(np.uint8)
-    # cv2.imwrite("masked_face.jpg", masked_face)
+        if result is not None:  # Only process frames where a face is detected
+            face, _, _ = result
+            face = (rearrange(face, "c h w -> h w c").detach().cpu().numpy()).astype(np.uint8)
+            cv2.imwrite("face.jpg", face)
+            break
