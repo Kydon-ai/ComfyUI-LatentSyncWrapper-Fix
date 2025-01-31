@@ -16,6 +16,7 @@ from PIL import Image
 import shutil
 import decimal
 from decimal import Decimal, ROUND_UP
+import requests
 
 def import_inference_script(script_path):
     """Import a Python file as a module using its file path."""
@@ -116,40 +117,54 @@ def get_ext_dir(subpath=None, mkdir=False):
     if mkdir and not os.path.exists(dir):
         os.makedirs(dir)
     return dir
-    
-def save_and_reload_frames(frames, temp_dir):
-    final_frames = []
-    for frame in frames:
-        # Convert to proper range (0-1)
-        frame = frame.float() / max(frame.max(), 1.0)  
-        # Ensure CHW format
-        if frame.shape[0] != 3:
-            frame = frame.permute(2, 0, 1)
-        final_frames.append(frame)
-    
-    stacked = torch.stack(final_frames)
-    print(f"Stacked min/max: {stacked.min()}, {stacked.max()}")
-    return stacked.to(device='cpu', dtype=torch.float32)
+
+def download_model(url, save_path):
+    """Download a model from a URL and save it to the specified path."""
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    response = requests.get(url, stream=True)
+    with open(save_path, "wb") as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            f.write(chunk)
+
+def pre_download_models():
+    """Pre-download all required models."""
+    models = {
+        "s3fd-e19a316812.pth": "https://www.adrianbulat.com/downloads/python-fan/s3fd-e19a316812.pth",
+        "diffusion_model.pth": "https://example.com/path/to/diffusion_model.pth",  # Replace with actual URL
+        # Add other models here
+    }
+
+    cache_dir = os.path.expanduser("~/.cache/torch/hub/checkpoints")
+    for model_name, url in models.items():
+        save_path = os.path.join(cache_dir, model_name)
+        if not os.path.exists(save_path):
+            print(f"Downloading {model_name}...")
+            download_model(url, save_path)
+        else:
+            print(f"{model_name} already exists in cache.")
 
 def setup_models():
+    """Setup and pre-download all required models."""
+    # Pre-download additional models
+    pre_download_models()
+
+    # Existing setup logic for LatentSync models
     cur_dir = get_ext_dir()
     ckpt_dir = os.path.join(cur_dir, "checkpoints")
     whisper_dir = os.path.join(ckpt_dir, "whisper")
-    
-    # Create directories if they don't exist
     os.makedirs(ckpt_dir, exist_ok=True)
     os.makedirs(whisper_dir, exist_ok=True)
-    
+
     unet_path = os.path.join(ckpt_dir, "latentsync_unet.pt")
     whisper_path = os.path.join(whisper_dir, "tiny.pt")
-    
+
     if not (os.path.exists(unet_path) and os.path.exists(whisper_path)):
         print("Downloading required model checkpoints... This may take a while.")
         try:
             from huggingface_hub import snapshot_download
             snapshot_download(repo_id="chunyu-li/LatentSync",
-                            allow_patterns=["latentsync_unet.pt", "whisper/tiny.pt"],
-                            local_dir=ckpt_dir, local_dir_use_symlinks=False)
+                             allow_patterns=["latentsync_unet.pt", "whisper/tiny.pt"],
+                             local_dir=ckpt_dir, local_dir_use_symlinks=False)
             print("Model checkpoints downloaded successfully!")
         except Exception as e:
             print(f"Error downloading models: {str(e)}")
@@ -163,8 +178,7 @@ def setup_models():
 class LatentSyncNode:
     def __init__(self):
         check_and_install_dependencies()
-        setup_models()
-
+        setup_models()  # This will now pre-download all required models
 
     @classmethod
     def INPUT_TYPES(s):
@@ -181,6 +195,7 @@ class LatentSyncNode:
     FUNCTION = "inference"
 
     def inference(self, images, audio, seed):
+        # Existing inference logic
         cur_dir = get_ext_dir()
         ckpt_dir = os.path.join(cur_dir, "checkpoints")
         output_dir = folder_paths.get_output_directory()
