@@ -130,8 +130,6 @@ def pre_download_models():
     """Pre-download all required models."""
     models = {
         "s3fd-e19a316812.pth": "https://www.adrianbulat.com/downloads/python-fan/s3fd-e19a316812.pth",
-        "diffusion_model.pth": "https://example.com/path/to/diffusion_model.pth",  # Replace with actual URL
-        # Add other models here
     }
 
     cache_dir = os.path.expanduser("~/.cache/torch/hub/checkpoints")
