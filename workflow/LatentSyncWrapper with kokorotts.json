@@ -1,83 +1,7 @@
 {
-  "last_node_id": 21,
-  "last_link_id": 34,
+  "last_node_id": 23,
+  "last_link_id": 37,
   "nodes": [
-    {
-      "id": 12,
-      "type": "Kokoro TextToSpeech",
-      "pos": [
-        2443.10009765625,
-        -174.2799835205078
-      ],
-      "size": [
-        270.45513916015625,
-        63.734310150146484
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "text",
-          "type": "STRING",
-          "link": 16,
-          "widget": {
-            "name": "text"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "audio",
-          "type": "AUDIO",
-          "links": [
-            12,
-            13
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "Kokoro TextToSpeech"
-      },
-      "widgets_values": [
-        "hey, you are watching Benji's Youtube channel! This is Text To Speech using Kokoro in ComfyUI.",
-        "am_adam"
-      ]
-    },
-    {
-      "id": 13,
-      "type": "StringConstantMultiline",
-      "pos": [
-        1934.0001220703125,
-        -175.2259979248047
-      ],
-      "size": [
-        430.2449645996094,
-        663.8911743164062
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            16
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "StringConstantMultiline"
-      },
-      "widgets_values": [
-        "Okay, let's see. The user is encountering a TypeError: \"slice indices must be integers or None or have an __index__ method\" in their Python code. The error points to the line where they're slicing a list of frames using `[:exact_frames_needed]`. The problem is that `exact_frames_needed` is a Decimal type, not an integer, which causes the slice operation to fail because slice indices must be integers.\n\nFirst, I need to check where `exact_frames_needed` is defined. In the previous code, they were using the `decimal` module for high-precision calculations, which led to `exact_frames_needed` being a `Decimal` instance. However, slice indices in Python require integers, so using a Decimal here is invalid.",
-        false
-      ]
-    },
     {
       "id": 16,
       "type": "D_LatentSyncNode",
@@ -126,78 +50,8 @@
         "Node name for S&R": "D_LatentSyncNode"
       },
       "widgets_values": [
-        1782,
+        1134,
         "randomize"
-      ]
-    },
-    {
-      "id": 1,
-      "type": "SetNode",
-      "pos": [
-        2509.84912109375,
-        47.076045989990234
-      ],
-      "size": [
-        210,
-        58
-      ],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "AUDIO",
-          "type": "AUDIO",
-          "link": 13
-        }
-      ],
-      "outputs": [
-        {
-          "name": "AUDIO",
-          "type": "AUDIO",
-          "links": [
-            33
-          ],
-          "slot_index": 0
-        }
-      ],
-      "title": "Set_autio_Kokorotts-1",
-      "properties": {
-        "previousName": ""
-      },
-      "widgets_values": [
-        "autio_Kokorotts-1"
-      ],
-      "color": "#2a363b",
-      "bgcolor": "#3f5159"
-    },
-    {
-      "id": 7,
-      "type": "PreviewAudio",
-      "pos": [
-        2793.28857421875,
-        -174.91542053222656
-      ],
-      "size": [
-        315,
-        76
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "audio",
-          "type": "AUDIO",
-          "link": 12
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "Node name for S&R": "PreviewAudio"
-      },
-      "widgets_values": [
-        null
       ]
     },
     {
@@ -262,10 +116,10 @@
       ],
       "size": [
         247.455078125,
-        427.63671875
+        262
       ],
       "flags": {},
-      "order": 1,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
@@ -399,44 +253,163 @@
           "hidden": false,
           "paused": false,
           "params": {
-            "filename": "cosmos_output_00004-audio.mp4",
+            "filename": "cosmos_output_00002-audio.mp4",
             "subfolder": "",
             "type": "temp",
             "format": "video/h264-mp4",
             "frame_rate": 25,
-            "workflow": "cosmos_output_00004.png",
-            "fullpath": "E:\\ComfyUI_windows\\ComfyUI\\temp\\cosmos_output_00004-audio.mp4"
+            "workflow": "cosmos_output_00002.png",
+            "fullpath": "E:\\ComfyUI_windows\\ComfyUI\\temp\\cosmos_output_00002-audio.mp4"
           },
           "muted": false
         }
       }
+    },
+    {
+      "id": 1,
+      "type": "SetNode",
+      "pos": [
+        2484.36328125,
+        50.261775970458984
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "link": 37
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            33
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Set_autio_Kokorotts-1",
+      "properties": {
+        "previousName": ""
+      },
+      "widgets_values": [
+        "autio_Kokorotts-1"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 23,
+      "type": "KokoroGenerator",
+      "pos": [
+        2435.13525390625,
+        -340.4314270019531
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "speaker",
+          "type": "KOKORO_SPEAKER",
+          "link": 35
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            36,
+            37
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KokoroGenerator"
+      },
+      "widgets_values": [
+        "Would you like me to help implement any of these specific optimizations or would you like more details about any particular aspect?",
+        1,
+        "en-us"
+      ]
+    },
+    {
+      "id": 22,
+      "type": "KokoroSpeaker",
+      "pos": [
+        2000.9835205078125,
+        -345.7167053222656
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "speaker",
+          "type": "KOKORO_SPEAKER",
+          "links": [
+            35
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KokoroSpeaker"
+      },
+      "widgets_values": [
+        "bm_daniel"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "PreviewAudio",
+      "pos": [
+        2923.592041015625,
+        -341.7496032714844
+      ],
+      "size": [
+        315,
+        76
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 36
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": [
+        null
+      ]
     }
   ],
   "links": [
-    [
-      12,
-      12,
-      0,
-      7,
-      0,
-      "AUDIO"
-    ],
-    [
-      13,
-      12,
-      0,
-      1,
-      0,
-      "AUDIO"
-    ],
-    [
-      16,
-      13,
-      0,
-      12,
-      0,
-      "STRING"
-    ],
     [
       26,
       16,
@@ -484,6 +457,30 @@
       20,
       1,
       "AUDIO"
+    ],
+    [
+      35,
+      22,
+      0,
+      23,
+      0,
+      "KOKORO_SPEAKER"
+    ],
+    [
+      36,
+      23,
+      0,
+      7,
+      0,
+      "AUDIO"
+    ],
+    [
+      37,
+      23,
+      0,
+      1,
+      0,
+      "AUDIO"
     ]
   ],
   "groups": [
@@ -504,17 +501,16 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.5445000000000004,
-      "offset": [
-        -1383.594692943873,
-        350.132466384834
-      ]
+      "scale": 0.7247295000000009,
+      "offset": {
+        "0": -1297.8697509765625,
+        "1": 1014.8385620117188
+      }
     },
     "node_versions": {
-      "ComfyUI-KokoroTTS": "86d82142b0e9f9ae0b36e991ae8c6cd97aedc815",
-      "ComfyUI-KJNodes": "28381262d197596eb2b4c9bcc361228a5dcef4cc",
-      "comfy-core": "0.3.10",
-      "ComfyUI-VideoHelperSuite": "cad87a17a3ff5e03c26cf55e4dc90397b5642503"
+      "ComfyUI-VideoHelperSuite": "cad87a17a3ff5e03c26cf55e4dc90397b5642503",
+      "comfyui-kokoro": "743120d2e5eec4eb4503205f9f4a93d9b997d7f6",
+      "comfy-core": "0.3.13"
     },
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0
