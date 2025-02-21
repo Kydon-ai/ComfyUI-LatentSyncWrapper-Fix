@@ -22,8 +22,7 @@ Before installing this node, you must install the following in order:
 
 4. If you get PYTHONPATH errors:
    - Make sure Python is in your system PATH
-   - Try running ComfyUI as administrator
-     
+        
 ## Installation
 
 Only proceed with installation after confirming all prerequisites are installed and working.
