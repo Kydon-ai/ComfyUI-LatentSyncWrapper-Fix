@@ -1,4 +1,144 @@
 import os
+import tempfile
+import uuid
+import sys
+import shutil
+
+# Function to find ComfyUI directories
+def get_comfyui_temp_dir():
+    """Dynamically find the ComfyUI temp directory"""
+    # First check using folder_paths if available
+    try:
+        import folder_paths
+        comfy_dir = os.path.dirname(os.path.dirname(os.path.abspath(folder_paths.__file__)))
+        temp_dir = os.path.join(comfy_dir, "temp")
+        return temp_dir
+    except:
+        pass
+    
+    # Try to locate based on current script location
+    try:
+        # This script is likely in a ComfyUI custom nodes directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Go up until we find the ComfyUI directory
+        potential_dir = current_dir
+        for _ in range(5):  # Limit to 5 levels up
+            if os.path.exists(os.path.join(potential_dir, "comfy.py")):
+                return os.path.join(potential_dir, "temp")
+            potential_dir = os.path.dirname(potential_dir)
+    except:
+        pass
+    
+    # Return None if we can't find it
+    return None
+
+# Function to clean up any ComfyUI temp directories
+def cleanup_comfyui_temp_directories():
+    """Find and clean up any ComfyUI temp directories"""
+    comfyui_temp = get_comfyui_temp_dir()
+    if not comfyui_temp:
+        print("Could not locate ComfyUI temp directory")
+        return
+    
+    comfyui_base = os.path.dirname(comfyui_temp)
+    
+    # Check for the main temp directory
+    if os.path.exists(comfyui_temp):
+        try:
+            shutil.rmtree(comfyui_temp)
+            print(f"Removed ComfyUI temp directory: {comfyui_temp}")
+        except Exception as e:
+            print(f"Could not remove {comfyui_temp}: {str(e)}")
+            # If we can't remove it, try to rename it
+            try:
+                backup_name = f"{comfyui_temp}_backup_{uuid.uuid4().hex[:8]}"
+                os.rename(comfyui_temp, backup_name)
+                print(f"Renamed {comfyui_temp} to {backup_name}")
+            except:
+                pass
+    
+    # Find and clean up any backup temp directories
+    try:
+        all_directories = [d for d in os.listdir(comfyui_base) if os.path.isdir(os.path.join(comfyui_base, d))]
+        for dirname in all_directories:
+            if dirname.startswith("temp_backup_"):
+                backup_path = os.path.join(comfyui_base, dirname)
+                try:
+                    shutil.rmtree(backup_path)
+                    print(f"Removed backup temp directory: {backup_path}")
+                except Exception as e:
+                    print(f"Could not remove backup dir {backup_path}: {str(e)}")
+    except Exception as e:
+        print(f"Error cleaning up temp directories: {str(e)}")
+
+# Create a module-level function to set up system-wide temp directory
+def init_temp_directories():
+    """Initialize global temporary directory settings"""
+    # First clean up any existing temp directories
+    cleanup_comfyui_temp_directories()
+    
+    # Generate a unique base directory for this module
+    system_temp = tempfile.gettempdir()
+    unique_id = str(uuid.uuid4())[:8]
+    temp_base_path = os.path.join(system_temp, f"latentsync_{unique_id}")
+    os.makedirs(temp_base_path, exist_ok=True)
+    
+    # Override environment variables that control temp directories
+    os.environ['TMPDIR'] = temp_base_path
+    os.environ['TEMP'] = temp_base_path
+    os.environ['TMP'] = temp_base_path
+    
+    # Force Python's tempfile module to use our directory
+    tempfile.tempdir = temp_base_path
+    
+    # Final check for ComfyUI temp directory
+    comfyui_temp = get_comfyui_temp_dir()
+    if comfyui_temp and os.path.exists(comfyui_temp):
+        try:
+            shutil.rmtree(comfyui_temp)
+            print(f"Removed ComfyUI temp directory: {comfyui_temp}")
+        except Exception as e:
+            print(f"Could not remove {comfyui_temp}, trying to rename: {str(e)}")
+            try:
+                backup_name = f"{comfyui_temp}_backup_{unique_id}"
+                os.rename(comfyui_temp, backup_name)
+                print(f"Renamed {comfyui_temp} to {backup_name}")
+                # Try to remove the renamed directory as well
+                try:
+                    shutil.rmtree(backup_name)
+                    print(f"Removed renamed temp directory: {backup_name}")
+                except:
+                    pass
+            except:
+                print(f"Failed to rename {comfyui_temp}")
+    
+    print(f"Set up system temp directory: {temp_base_path}")
+    return temp_base_path
+
+# Function to clean up everything when the module exits
+def module_cleanup():
+    """Clean up all resources when the module is unloaded"""
+    global MODULE_TEMP_DIR
+    
+    # Clean up our module temp directory
+    if MODULE_TEMP_DIR and os.path.exists(MODULE_TEMP_DIR):
+        try:
+            shutil.rmtree(MODULE_TEMP_DIR, ignore_errors=True)
+            print(f"Cleaned up module temp directory: {MODULE_TEMP_DIR}")
+        except:
+            pass
+    
+    # Do a final sweep for any ComfyUI temp directories
+    cleanup_comfyui_temp_directories()
+
+# Call this before anything else
+MODULE_TEMP_DIR = init_temp_directories()
+
+# Register the cleanup handler to run when Python exits
+import atexit
+atexit.register(module_cleanup)
+
+# Now import regular dependencies
 import math
 import torch
 import random
@@ -7,16 +147,21 @@ import folder_paths
 import numpy as np
 import platform
 import subprocess
-import sys
 import importlib.util
 import importlib.machinery
 import argparse
 from omegaconf import OmegaConf
 from PIL import Image
-import shutil
-import decimal
 from decimal import Decimal, ROUND_UP
 import requests
+
+# Modify folder_paths module to use our temp directory
+if hasattr(folder_paths, "get_temp_directory"):
+    original_get_temp = folder_paths.get_temp_directory
+    folder_paths.get_temp_directory = lambda: MODULE_TEMP_DIR
+else:
+    # Add the function if it doesn't exist
+    setattr(folder_paths, 'get_temp_directory', lambda: MODULE_TEMP_DIR)
 
 def import_inference_script(script_path):
     """Import a Python file as a module using its file path."""
@@ -108,14 +253,25 @@ def normalize_path(path):
     return os.path.normpath(path).replace('\\', '/')
 
 def get_ext_dir(subpath=None, mkdir=False):
-    dir = os.path.dirname(__file__)
+    """Get extension directory path, optionally with a subpath"""
+    # Get the directory containing this script
+    dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Special case for temp directories
+    if subpath and ("temp" in subpath.lower() or "tmp" in subpath.lower()):
+        # Use our global temp directory instead
+        global MODULE_TEMP_DIR
+        sub_temp = os.path.join(MODULE_TEMP_DIR, subpath)
+        if mkdir and not os.path.exists(sub_temp):
+            os.makedirs(sub_temp, exist_ok=True)
+        return sub_temp
+    
     if subpath is not None:
         dir = os.path.join(dir, subpath)
 
-    dir = os.path.abspath(dir)
-
     if mkdir and not os.path.exists(dir):
-        os.makedirs(dir)
+        os.makedirs(dir, exist_ok=True)
+    
     return dir
 
 def download_model(url, save_path):
@@ -130,11 +286,12 @@ def pre_download_models():
     """Pre-download all required models."""
     models = {
         "s3fd-e19a316812.pth": "https://www.adrianbulat.com/downloads/python-fan/s3fd-e19a316812.pth",
-        "diffusion_model.pth": "https://example.com/path/to/diffusion_model.pth",  # Replace with actual URL
         # Add other models here
     }
 
-    cache_dir = os.path.expanduser("~/.cache/torch/hub/checkpoints")
+    cache_dir = os.path.join(MODULE_TEMP_DIR, "model_cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    
     for model_name, url in models.items():
         save_path = os.path.join(cache_dir, model_name)
         if not os.path.exists(save_path):
@@ -145,6 +302,9 @@ def pre_download_models():
 
 def setup_models():
     """Setup and pre-download all required models."""
+    # Use our global temp directory
+    global MODULE_TEMP_DIR
+    
     # Pre-download additional models
     pre_download_models()
 
@@ -155,6 +315,10 @@ def setup_models():
     os.makedirs(ckpt_dir, exist_ok=True)
     os.makedirs(whisper_dir, exist_ok=True)
 
+    # Create a temp_downloads directory in our system temp
+    temp_downloads = os.path.join(MODULE_TEMP_DIR, "downloads")
+    os.makedirs(temp_downloads, exist_ok=True)
+    
     unet_path = os.path.join(ckpt_dir, "latentsync_unet.pt")
     whisper_path = os.path.join(whisper_dir, "tiny.pt")
 
@@ -164,7 +328,9 @@ def setup_models():
             from huggingface_hub import snapshot_download
             snapshot_download(repo_id="chunyu-li/LatentSync",
                              allow_patterns=["latentsync_unet.pt", "whisper/tiny.pt"],
-                             local_dir=ckpt_dir, local_dir_use_symlinks=False)
+                             local_dir=ckpt_dir, 
+                             local_dir_use_symlinks=False,
+                             cache_dir=temp_downloads)  # Use our temp dir for caching
             print("Model checkpoints downloaded successfully!")
         except Exception as e:
             print(f"Error downloading models: {str(e)}")
@@ -177,8 +343,22 @@ def setup_models():
 
 class LatentSyncNode:
     def __init__(self):
+        # Make sure our temp directory is the current one
+        global MODULE_TEMP_DIR
+        if not os.path.exists(MODULE_TEMP_DIR):
+            os.makedirs(MODULE_TEMP_DIR, exist_ok=True)
+        
+        # Ensure ComfyUI temp doesn't exist
+        comfyui_temp = "D:\\ComfyUI_windows\\temp"
+        if os.path.exists(comfyui_temp):
+            backup_name = f"{comfyui_temp}_backup_{uuid.uuid4().hex[:8]}"
+            try:
+                os.rename(comfyui_temp, backup_name)
+            except:
+                pass
+        
         check_and_install_dependencies()
-        setup_models()  # This will now pre-download all required models
+        setup_models()
 
     @classmethod
     def INPUT_TYPES(s):
@@ -206,6 +386,9 @@ class LatentSyncNode:
             return processed_batch
 
     def inference(self, images, audio, seed):
+        # Use our module temp directory
+        global MODULE_TEMP_DIR
+        
         # Get GPU capabilities and memory
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         BATCH_SIZE = 4
@@ -216,12 +399,11 @@ class LatentSyncNode:
             gpu_mem_gb = gpu_mem / (1024 ** 3)
 
             # Dynamically adjust batch size based on GPU memory
-            # Conservative estimate - adjust these thresholds based on testing
-            if gpu_mem_gb > 20:  # High-end GPUs (A100, A6000, etc)
+            if gpu_mem_gb > 20:  # High-end GPUs
                 BATCH_SIZE = 32
                 enable_tf32 = True
                 use_mixed_precision = True
-            elif gpu_mem_gb > 8:  # Mid-range GPUs (RTX 3070, 4060 Ti, etc)
+            elif gpu_mem_gb > 8:  # Mid-range GPUs
                 BATCH_SIZE = 16
                 enable_tf32 = False
                 use_mixed_precision = True
@@ -238,27 +420,36 @@ class LatentSyncNode:
 
             # Clear GPU cache before processing
             torch.cuda.empty_cache()
+            torch.cuda.set_per_process_memory_fraction(0.8)
 
-            # Set conservative memory fraction
-            torch.cuda.set_per_process_memory_fraction(0.8)  # Use up to 80% of GPU memory
-
+        # Create a run-specific subdirectory in our temp directory
+        run_id = ''.join(random.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(5))
+        temp_dir = os.path.join(MODULE_TEMP_DIR, f"run_{run_id}")
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Ensure ComfyUI temp doesn't exist again (in case something recreated it)
+        comfyui_temp = "D:\\ComfyUI_windows\\temp"
+        if os.path.exists(comfyui_temp):
+            backup_name = f"{comfyui_temp}_backup_{uuid.uuid4().hex[:8]}"
+            try:
+                os.rename(comfyui_temp, backup_name)
+            except:
+                pass
+        
         temp_video_path = None
         output_video_path = None
         audio_path = None
-        temp_dir = None
 
         try:
-            cur_dir = get_ext_dir()
-            output_dir = folder_paths.get_output_directory()
-            temp_dir = os.path.join(output_dir, "temp_frames")
-            os.makedirs(output_dir, exist_ok=True)
-            os.makedirs(temp_dir, exist_ok=True)
-
-            output_name = ''.join(random.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(5))
-            temp_video_path = os.path.join(output_dir, f"temp_{output_name}.mp4")
-            output_video_path = os.path.join(output_dir, f"latentsync_{output_name}_out.mp4")
+            # Create temporary file paths in our system temp directory
+            temp_video_path = os.path.join(temp_dir, f"temp_{run_id}.mp4")
+            output_video_path = os.path.join(temp_dir, f"latentsync_{run_id}_out.mp4")
+            audio_path = os.path.join(temp_dir, f"latentsync_{run_id}_audio.wav")
             
-            # Move tensors to appropriate device
+            # Get the extension directory
+            cur_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            # Process input frames
             if isinstance(images, list):
                 frames = torch.stack(images).to(device)
             else:
@@ -285,12 +476,11 @@ class LatentSyncNode:
 
             # Package resampled audio
             resampled_audio = {
-                "waveform": waveform.unsqueeze(0),  # Add batch dim
+                "waveform": waveform.unsqueeze(0),
                 "sample_rate": sample_rate
             }
             
             # Move waveform to CPU for saving
-            audio_path = os.path.join(output_dir, f"latentsync_{output_name}_audio.wav")
             waveform_cpu = waveform.cpu()
             torchaudio.save(audio_path, waveform_cpu, sample_rate)
 
@@ -315,12 +505,14 @@ class LatentSyncNode:
                 container.mux(packet)
                 container.close()
 
+            # Define paths to required files and configs
             inference_script_path = os.path.join(cur_dir, "scripts", "inference.py")
             config_path = os.path.join(cur_dir, "configs", "unet", "second_stage.yaml")
             scheduler_config_path = os.path.join(cur_dir, "configs")
             ckpt_path = os.path.join(cur_dir, "checkpoints", "latentsync_unet.pt")
             whisper_ckpt_path = os.path.join(cur_dir, "checkpoints", "whisper", "tiny.pt")
 
+            # Create config and args
             config = OmegaConf.load(config_path)
             args = argparse.Namespace(
                 unet_config_path=config_path,
@@ -333,40 +525,58 @@ class LatentSyncNode:
                 whisper_ckpt_path=whisper_ckpt_path,
                 device=device,
                 batch_size=BATCH_SIZE,
-                use_mixed_precision=use_mixed_precision
+                use_mixed_precision=use_mixed_precision,
+                temp_dir=temp_dir  # Pass our temp dir to the inference script
             )
 
-            # Add the package root to Python path
+            # Set PYTHONPATH to include our directories 
             package_root = os.path.dirname(cur_dir)
             if package_root not in sys.path:
                 sys.path.insert(0, package_root)
-
-            # Add the current directory to Python path
             if cur_dir not in sys.path:
                 sys.path.insert(0, cur_dir)
 
             # Clean GPU cache before inference
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+                
+            # Check and prevent ComfyUI temp creation again
+            if os.path.exists(comfyui_temp):
+                try:
+                    os.rename(comfyui_temp, f"{comfyui_temp}_backup_{uuid.uuid4().hex[:8]}")
+                except:
+                    pass
 
+            # Import the inference module
             inference_module = import_inference_script(inference_script_path)
+            
+            # Monkey patch any temp directory functions in the inference module
+            if hasattr(inference_module, 'get_temp_dir'):
+                inference_module.get_temp_dir = lambda *args, **kwargs: temp_dir
+                
+            # Create subdirectories that the inference module might expect
+            inference_temp = os.path.join(temp_dir, "temp")
+            os.makedirs(inference_temp, exist_ok=True)
+            
+            # Run inference
             inference_module.main(config, args)
 
             # Clean GPU cache after inference
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
+            # Verify output file exists
+            if not os.path.exists(output_video_path):
+                raise FileNotFoundError(f"Output video not found at: {output_video_path}")
+            
             # Read the processed video - ensure it's loaded as CPU tensor
-            processed_frames = io.read_video(output_video_path, pts_unit='sec')[0]  # [T, H, W, C]
+            processed_frames = io.read_video(output_video_path, pts_unit='sec')[0]
             processed_frames = processed_frames.float() / 255.0
 
             # Ensure audio is on CPU before returning
             if torch.cuda.is_available():
-                # Check if resampled_audio["waveform"] is on GPU and move it to CPU if necessary
                 if hasattr(resampled_audio["waveform"], 'device') and resampled_audio["waveform"].device.type == 'cuda':
                     resampled_audio["waveform"] = resampled_audio["waveform"].cpu()
-                
-                # Ensure processed_frames is on CPU
                 if hasattr(processed_frames, 'device') and processed_frames.device.type == 'cuda':
                     processed_frames = processed_frames.cpu()
 
@@ -379,15 +589,25 @@ class LatentSyncNode:
             raise
 
         finally:
-            # Clean up temporary files
-            if temp_video_path and os.path.exists(temp_video_path):
-                os.remove(temp_video_path)
-            if output_video_path and os.path.exists(output_video_path):
-                os.remove(output_video_path)
-            if audio_path and os.path.exists(audio_path):
-                os.remove(audio_path)
+            # Clean up temporary files individually
+            for path in [temp_video_path, output_video_path, audio_path]:
+                if path and os.path.exists(path):
+                    try:
+                        os.remove(path)
+                        print(f"Removed temporary file: {path}")
+                    except Exception as e:
+                        print(f"Failed to remove {path}: {str(e)}")
+
+            # Remove temporary run directory
             if temp_dir and os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir, ignore_errors=True)
+                try:
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                    print(f"Removed run temporary directory: {temp_dir}")
+                except Exception as e:
+                    print(f"Failed to remove temp run directory: {str(e)}")
+
+            # Clean up any ComfyUI temp directories again (in case they were created during execution)
+            cleanup_comfyui_temp_directories()
 
             # Final GPU cache cleanup
             if torch.cuda.is_available():
@@ -478,13 +698,31 @@ class VideoLengthAdjuster:
                 {"waveform": padded_audio.unsqueeze(0), "sample_rate": sample_rate}
             )
 
+# Handle final cleanup when the module is unloaded
+def cleanup_on_exit():
+    """Clean up temporary directories and resources when the module is unloaded"""
+    global MODULE_TEMP_DIR
+    
+    # Only clean up if the directory exists and is in a proper temp location
+    if MODULE_TEMP_DIR and os.path.exists(MODULE_TEMP_DIR) and "latentsync_" in MODULE_TEMP_DIR:
+        try:
+            shutil.rmtree(MODULE_TEMP_DIR, ignore_errors=True)
+            print(f"Cleaned up module temporary directory: {MODULE_TEMP_DIR}")
+        except:
+            pass
+
+# Register cleanup handler to run on exit
+import atexit
+atexit.register(cleanup_on_exit)
+
+# Node Mappings for ComfyUI
 NODE_CLASS_MAPPINGS = {
     "D_LatentSyncNode": LatentSyncNode,
     "D_VideoLengthAdjuster": VideoLengthAdjuster,
 }
 
+# Display Names for ComfyUI
 NODE_DISPLAY_NAME_MAPPINGS = {
     "D_LatentSyncNode": "LatentSync Node",
     "D_VideoLengthAdjuster": "Video Length Adjuster",
 }
-
