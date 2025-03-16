@@ -367,6 +367,7 @@ class LatentSyncNode:
                     "audio": ("AUDIO", ),
                     "seed": ("INT", {"default": 1247}),
                     "lips_expression": ("FLOAT", {"default": 1.5, "min": 1.0, "max": 3.0, "step": 0.1}),
+                    "inference_steps": ("INT", {"default": 20, "min": 1, "max": 999, "step": 1}),
                  },}
 
     CATEGORY = "LatentSyncNode"
@@ -386,7 +387,7 @@ class LatentSyncNode:
                 processed_batch = processed_batch[..., :3]
             return processed_batch
 
-    def inference(self, images, audio, seed, lips_expression=1.5):
+    def inference(self, images, audio, seed, lips_expression=1.5, inference_steps=20):
         # Use our module temp directory
         global MODULE_TEMP_DIR
         
@@ -538,7 +539,7 @@ class LatentSyncNode:
                 audio_path=audio_path,
                 video_out_path=output_video_path,
                 seed=seed,
-                inference_steps=20,
+                inference_steps=inference_steps,
                 guidance_scale=lips_expression,  # Using lips_expression for the guidance_scale
                 scheduler_config_path=scheduler_config_path,
                 whisper_ckpt_path=whisper_ckpt_path,
