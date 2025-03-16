@@ -4,7 +4,7 @@ Unofficial [LatentSync 1.5](https://github.com/bytedance/LatentSync) implementat
 
 This node provides advanced lip-sync capabilities in ComfyUI using ByteDance's LatentSync 1.5 model. It allows you to synchronize video lips with audio input with improved temporal consistency and better performance on a wider range of languages.
 
-![image](https://github.com/user-attachments/assets/59c526ca-8086-43f9-81ac-410927f17bd2)
+![image](https://github.com/user-attachments/assets/85e4dafe-2adf-4994-9440-8a435a5ea6d8)
 
 
 ## What's new in LatentSync 1.5?
@@ -90,8 +90,9 @@ Make sure all these files are present for proper functionality. The main model f
 2. Load an audio file using ComfyUI audio loader
 3. (Optional) Set a seed value for reproducible results
 4. (Optional) Adjust the lips_expression parameter to control lip movement intensity
-5. Connect to the LatentSync1.5 node
-6. Run the workflow
+5. (Optional) Modify the inference_steps parameter to balance quality and speed
+6. Connect to the LatentSync1.5 node
+7. Run the workflow
 
 The processed video will be saved in ComfyUI's output directory.
 
@@ -103,12 +104,18 @@ The processed video will be saved in ComfyUI's output directory.
   - Higher values (2.0-3.0): More pronounced lip movements, better for expressive speech
   - Lower values (1.0-1.5): Subtler lip movements, better for calm speech
   - This parameter affects the model's guidance scale, balancing between natural movement and lip sync accuracy
+- `inference_steps`: Number of denoising steps during inference (default: 20)
+  - Higher values (30-50): Better quality results but slower processing
+  - Lower values (10-15): Faster processing but potentially lower quality
+  - The default of 20 usually provides a good balance between quality and speed
 
 ### Tips for Better Results:
 - For speeches or presentations where clear lip movements are important, try increasing the lips_expression value to 2.0-2.5
 - For casual conversations, the default value of 1.5 usually works well
 - If lip movements appear unnatural or exaggerated, try lowering the lips_expression value
 - Different values may work better for different languages and speech patterns
+- If you need higher quality results and have time to wait, increase inference_steps to 30-50
+- For quicker previews or less critical applications, reduce inference_steps to 10-15
 
 ## Known Limitations
 
