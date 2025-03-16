@@ -366,6 +366,7 @@ class LatentSyncNode:
                     "images": ("IMAGE",),
                     "audio": ("AUDIO", ),
                     "seed": ("INT", {"default": 1247}),
+                    "lips_expression": ("FLOAT", {"default": 1.5, "min": 1.0, "max": 3.0, "step": 0.1}),
                  },}
 
     CATEGORY = "LatentSyncNode"
@@ -385,7 +386,7 @@ class LatentSyncNode:
                 processed_batch = processed_batch[..., :3]
             return processed_batch
 
-    def inference(self, images, audio, seed):
+    def inference(self, images, audio, seed, lips_expression=1.5):
         # Use our module temp directory
         global MODULE_TEMP_DIR
         
@@ -537,15 +538,15 @@ class LatentSyncNode:
                 audio_path=audio_path,
                 video_out_path=output_video_path,
                 seed=seed,
-                inference_steps=20,  # Added this line with default value of 20
-                guidance_scale=1.0,  # Also adding this parameter
+                inference_steps=20,
+                guidance_scale=lips_expression,  # Using lips_expression for the guidance_scale
                 scheduler_config_path=scheduler_config_path,
                 whisper_ckpt_path=whisper_ckpt_path,
                 device=device,
                 batch_size=BATCH_SIZE,
                 use_mixed_precision=use_mixed_precision,
-                temp_dir=temp_dir,  # Pass our temp dir to the inference script
-                mask_image_path=mask_image_path  # Pass the mask image path explicitly
+                temp_dir=temp_dir,
+                mask_image_path=mask_image_path
             )
 
             # Set PYTHONPATH to include our directories 
