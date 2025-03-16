@@ -4,7 +4,7 @@ Unofficial [LatentSync 1.5](https://github.com/bytedance/LatentSync) implementat
 
 This node provides advanced lip-sync capabilities in ComfyUI using ByteDance's LatentSync 1.5 model. It allows you to synchronize video lips with audio input with improved temporal consistency and better performance on a wider range of languages.
 
-![image](https://github.com/user-attachments/assets/16f43015-e818-49ed-b1d2-72fe2fe9772a)
+![image](https://github.com/user-attachments/assets/59c526ca-8086-43f9-81ac-410927f17bd2)
 
 
 ## What's new in LatentSync 1.5?
@@ -89,8 +89,9 @@ Make sure all these files are present for proper functionality. The main model f
 1. Select an input video file with AceNodes video loader
 2. Load an audio file using ComfyUI audio loader
 3. (Optional) Set a seed value for reproducible results
-4. Connect to the LatentSync1.5 node
-5. Run the workflow
+4. (Optional) Adjust the lips_expression parameter to control lip movement intensity
+5. Connect to the LatentSync1.5 node
+6. Run the workflow
 
 The processed video will be saved in ComfyUI's output directory.
 
@@ -98,6 +99,16 @@ The processed video will be saved in ComfyUI's output directory.
 - `video_path`: Path to input video file
 - `audio`: Audio input from AceNodes audio loader
 - `seed`: Random seed for reproducible results (default: 1247)
+- `lips_expression`: Controls the expressiveness of lip movements (default: 1.5)
+  - Higher values (2.0-3.0): More pronounced lip movements, better for expressive speech
+  - Lower values (1.0-1.5): Subtler lip movements, better for calm speech
+  - This parameter affects the model's guidance scale, balancing between natural movement and lip sync accuracy
+
+### Tips for Better Results:
+- For speeches or presentations where clear lip movements are important, try increasing the lips_expression value to 2.0-2.5
+- For casual conversations, the default value of 1.5 usually works well
+- If lip movements appear unnatural or exaggerated, try lowering the lips_expression value
+- Different values may work better for different languages and speech patterns
 
 ## Known Limitations
 
