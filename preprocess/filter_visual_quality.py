@@ -60,7 +60,9 @@ def func(paths, device_id):
     model_hyper.train(False)
 
     # load the pre-trained model on the koniq-10k dataset
-    model_hyper.load_state_dict((torch.load("checkpoints/auxiliary/koniq_pretrained.pkl")))
+    model_hyper.load_state_dict(
+        (torch.load("checkpoints/auxiliary/koniq_pretrained.pkl", map_location=device, weights_only=True))
+    )
 
     transforms = torchvision.transforms.Compose(
         [
@@ -77,7 +79,7 @@ def func(paths, device_id):
             paras = model_hyper(video_frames)  # 'paras' contains the network weights conveyed to target network
 
             # Building target network
-            model_target = TargetNet(paras).cuda()
+            model_target = TargetNet(paras).to(device)
             for param in model_target.parameters():
                 param.requires_grad = False
 
