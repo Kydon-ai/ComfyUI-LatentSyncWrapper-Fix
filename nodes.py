@@ -326,11 +326,11 @@ def setup_models():
         print("Downloading required model checkpoints... This may take a while.")
         try:
             from huggingface_hub import snapshot_download
-            snapshot_download(repo_id="chunyu-li/LatentSync",
+            snapshot_download(repo_id="ByteDance/LatentSync-1.5",
                              allow_patterns=["latentsync_unet.pt", "whisper/tiny.pt"],
                              local_dir=ckpt_dir, 
                              local_dir_use_symlinks=False,
-                             cache_dir=temp_downloads)  # Use our temp dir for caching
+                             cache_dir=temp_downloads)
             print("Model checkpoints downloaded successfully!")
         except Exception as e:
             print(f"Error downloading models: {str(e)}")
@@ -507,13 +507,29 @@ class LatentSyncNode:
 
             # Define paths to required files and configs
             inference_script_path = os.path.join(cur_dir, "scripts", "inference.py")
-            config_path = os.path.join(cur_dir, "configs", "unet", "second_stage.yaml")
+            config_path = os.path.join(cur_dir, "configs", "unet", "stage2.yaml")
             scheduler_config_path = os.path.join(cur_dir, "configs")
             ckpt_path = os.path.join(cur_dir, "checkpoints", "latentsync_unet.pt")
             whisper_ckpt_path = os.path.join(cur_dir, "checkpoints", "whisper", "tiny.pt")
 
             # Create config and args
             config = OmegaConf.load(config_path)
+
+            # Set the correct mask image path
+            mask_image_path = os.path.join(cur_dir, "latentsync", "utils", "mask.png")
+            # Make sure the mask image exists
+            if not os.path.exists(mask_image_path):
+                # Try to find it in the utils directory directly
+                alt_mask_path = os.path.join(cur_dir, "utils", "mask.png")
+                if os.path.exists(alt_mask_path):
+                    mask_image_path = alt_mask_path
+                else:
+                    print(f"Warning: Could not find mask image at expected locations")
+
+            # Set mask path in config
+            if hasattr(config, "data") and hasattr(config.data, "mask_image_path"):
+                config.data.mask_image_path = mask_image_path
+
             args = argparse.Namespace(
                 unet_config_path=config_path,
                 inference_ckpt_path=ckpt_path,
@@ -521,12 +537,15 @@ class LatentSyncNode:
                 audio_path=audio_path,
                 video_out_path=output_video_path,
                 seed=seed,
+                inference_steps=20,  # Added this line with default value of 20
+                guidance_scale=1.0,  # Also adding this parameter
                 scheduler_config_path=scheduler_config_path,
                 whisper_ckpt_path=whisper_ckpt_path,
                 device=device,
                 batch_size=BATCH_SIZE,
                 use_mixed_precision=use_mixed_precision,
-                temp_dir=temp_dir  # Pass our temp dir to the inference script
+                temp_dir=temp_dir,  # Pass our temp dir to the inference script
+                mask_image_path=mask_image_path  # Pass the mask image path explicitly
             )
 
             # Set PYTHONPATH to include our directories 
@@ -717,12 +736,12 @@ atexit.register(cleanup_on_exit)
 
 # Node Mappings for ComfyUI
 NODE_CLASS_MAPPINGS = {
-    "D_LatentSyncNode": LatentSyncNode,
-    "D_VideoLengthAdjuster": VideoLengthAdjuster,
+    "LatentSyncNode": LatentSyncNode,
+    "VideoLengthAdjuster": VideoLengthAdjuster,
 }
 
 # Display Names for ComfyUI
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "D_LatentSyncNode": "LatentSync Node",
-    "D_VideoLengthAdjuster": "Video Length Adjuster",
+    "LatentSyncNode": "LatentSync1.5 Node",
+    "VideoLengthAdjuster": "Video Length Adjuster",
 }
