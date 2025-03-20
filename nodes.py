@@ -658,20 +658,23 @@ class VideoLengthAdjuster:
         original_frames = [images[i] for i in range(images.shape[0])] if isinstance(images, torch.Tensor) else images.copy()
 
         if mode == "normal":
-            # Bypass video frames exactly
-            video_duration = len(original_frames) / fps
-            required_samples = int(video_duration * sample_rate)
+            # MODIFIED: Trim video to match audio duration plus silent_padding_sec
+            audio_duration = waveform.shape[1] / sample_rate
+            # Add silent_padding_sec to the required video length
+            required_frames = int((audio_duration + silent_padding_sec) * fps)
             
-            # Adjust audio to match video duration
-            if waveform.shape[1] >= required_samples:
-                adjusted_audio = waveform[:, :required_samples]  # Trim audio
+            if len(original_frames) > required_frames:
+                # Trim video frames to match audio duration + silent_padding_sec
+                adjusted_frames = original_frames[:required_frames]
             else:
-                silence = torch.zeros((waveform.shape[0], required_samples - waveform.shape[1]), dtype=waveform.dtype)
-                adjusted_audio = torch.cat([waveform, silence], dim=1)  # Pad audio
+                # If video is shorter than audio+padding, we'll keep all video frames and trim audio
+                adjusted_frames = original_frames
+                required_samples = int(len(original_frames) / fps * sample_rate)
+                waveform = waveform[:, :required_samples]
             
             return (
-                torch.stack(original_frames),
-                {"waveform": adjusted_audio.unsqueeze(0), "sample_rate": sample_rate}
+                torch.stack(adjusted_frames),
+                {"waveform": waveform.unsqueeze(0), "sample_rate": sample_rate}
             )
 
         elif mode == "pingpong":
@@ -718,23 +721,6 @@ class VideoLengthAdjuster:
                 torch.stack(frames[:target_frames]),
                 {"waveform": padded_audio.unsqueeze(0), "sample_rate": sample_rate}
             )
-
-# Handle final cleanup when the module is unloaded
-def cleanup_on_exit():
-    """Clean up temporary directories and resources when the module is unloaded"""
-    global MODULE_TEMP_DIR
-    
-    # Only clean up if the directory exists and is in a proper temp location
-    if MODULE_TEMP_DIR and os.path.exists(MODULE_TEMP_DIR) and "latentsync_" in MODULE_TEMP_DIR:
-        try:
-            shutil.rmtree(MODULE_TEMP_DIR, ignore_errors=True)
-            print(f"Cleaned up module temporary directory: {MODULE_TEMP_DIR}")
-        except:
-            pass
-
-# Register cleanup handler to run on exit
-import atexit
-atexit.register(cleanup_on_exit)
 
 # Node Mappings for ComfyUI
 NODE_CLASS_MAPPINGS = {
