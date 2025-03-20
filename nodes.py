@@ -658,24 +658,34 @@ class VideoLengthAdjuster:
         original_frames = [images[i] for i in range(images.shape[0])] if isinstance(images, torch.Tensor) else images.copy()
 
         if mode == "normal":
-            # MODIFIED: Trim video to match audio duration plus silent_padding_sec
+            # Add silent padding to the audio and then trim video to match
             audio_duration = waveform.shape[1] / sample_rate
-            # Add silent_padding_sec to the required video length
-            required_frames = int((audio_duration + silent_padding_sec) * fps)
+            
+            # Add silent padding to the audio
+            silence_samples = math.ceil(silent_padding_sec * sample_rate)
+            silence = torch.zeros((waveform.shape[0], silence_samples), dtype=waveform.dtype)
+            padded_audio = torch.cat([waveform, silence], dim=1)
+            
+            # Calculate required frames based on the padded audio
+            padded_audio_duration = (waveform.shape[1] + silence_samples) / sample_rate
+            required_frames = int(padded_audio_duration * fps)
             
             if len(original_frames) > required_frames:
-                # Trim video frames to match audio duration + silent_padding_sec
+                # Trim video frames to match padded audio duration
                 adjusted_frames = original_frames[:required_frames]
             else:
-                # If video is shorter than audio+padding, we'll keep all video frames and trim audio
+                # If video is shorter than padded audio, keep all video frames
+                # and trim the audio accordingly
                 adjusted_frames = original_frames
                 required_samples = int(len(original_frames) / fps * sample_rate)
-                waveform = waveform[:, :required_samples]
+                padded_audio = padded_audio[:, :required_samples]
             
             return (
                 torch.stack(adjusted_frames),
-                {"waveform": waveform.unsqueeze(0), "sample_rate": sample_rate}
+                {"waveform": padded_audio.unsqueeze(0), "sample_rate": sample_rate}
             )
+            
+            # This return statement is no longer needed as it's handled in the updated code
 
         elif mode == "pingpong":
             video_duration = len(original_frames) / fps
