@@ -116,7 +116,7 @@ class LipsyncPipeline(DiffusionPipeline):
 
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
 
-        self.set_progress_bar_config(desc="Steps")
+        # self.set_progress_bar_config(desc="Steps")
 
     def enable_vae_slicing(self):
         self.vae.enable_slicing()
@@ -313,7 +313,7 @@ class LipsyncPipeline(DiffusionPipeline):
         device = self._execution_device
         mask_image = load_fixed_mask(height, mask_image_path)
         self.image_processor = ImageProcessor(height, mask=mask, device="cuda", mask_image=mask_image)
-        self.set_progress_bar_config(desc=f"Sample frames: {num_frames}")
+        # self.set_progress_bar_config(desc=f"Sample frames: {num_frames}")
 
         # 1. Default height and width to unet
         height = height or self.denoising_unet.config.sample_size * self.vae_scale_factor
@@ -361,7 +361,7 @@ class LipsyncPipeline(DiffusionPipeline):
             generator,
         )
 
-        for i in tqdm.tqdm(range(num_inferences), desc="Doing inference..."):
+        for i in tqdm.tqdm(range(num_inferences), position=0, desc="Doing inference..."):
             if self.denoising_unet.add_audio_layer:
                 audio_embeds = torch.stack(whisper_chunks[i * num_frames : (i + 1) * num_frames])
                 audio_embeds = audio_embeds.to(device, dtype=weight_dtype)
@@ -399,7 +399,8 @@ class LipsyncPipeline(DiffusionPipeline):
 
             # 9. Denoising loop
             num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
-            with self.progress_bar(total=num_inference_steps) as progress_bar:
+            # with self.progress_bar(total=num_inference_steps) as progress_bar:
+            with tqdm.tqdm(total=num_inference_steps, position=1, desc=f"Sample {num_frames} frames", leave=False) as progress_bar:
                 for j, t in enumerate(timesteps):
                     # expand the latents if we are doing classifier free guidance
                     denoising_unet_input = torch.cat([latents] * 2) if do_classifier_free_guidance else latents
@@ -451,7 +452,7 @@ class LipsyncPipeline(DiffusionPipeline):
         if is_train:
             self.denoising_unet.train()
 
-        temp_dir = "temp"
+        temp_dir = os.path.join(os.path.dirname(video_path), "temp")
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
         os.makedirs(temp_dir, exist_ok=True)
