@@ -222,7 +222,8 @@ def check_and_install_dependencies():
         'accelerate',
         'huggingface_hub',
         'einops',
-        'diffusers'
+        'diffusers',
+        'ffmpeg-python>=0.2.0' 
     ]
 
     def is_package_installed(package_name):

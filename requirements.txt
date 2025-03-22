@@ -7,6 +7,6 @@ einops
 opencv-python
 face-alignment
 decord
-ffmpeg-python
+ffmpeg-python>=0.2.0
 safetensors
 soundfile
