@@ -17,11 +17,13 @@ import os
 from omegaconf import OmegaConf
 import torch
 from diffusers import AutoencoderKL, DDIMScheduler
-from latentsync.models.unet import UNet3DConditionModel
-from latentsync.pipelines.lipsync_pipeline import LipsyncPipeline
+from ..latentsync.models.unet import UNet3DConditionModel
+from ..latentsync.pipelines.lipsync_pipeline import LipsyncPipeline
 from accelerate.utils import set_seed
-from latentsync.whisper.audio2feature import Audio2Feature
-
+from ..latentsync.whisper.audio2feature import Audio2Feature
+import json
+import safetensors.torch
+from ..utils.diffusers_convert import convert_vae_state_dict_to_hf
 
 def main(config, args):
     if not os.path.exists(args.video_path):
@@ -40,7 +42,7 @@ def main(config, args):
     # Use relative path for scheduler configuration
     current_dir = os.path.dirname(os.path.abspath(__file__))
     scheduler_path = os.path.join(current_dir, "..", "configs", "scheduler")
-    
+
     # Check if scheduler directory exists
     if not os.path.exists(scheduler_path):
         print(f"Creating scheduler directory at {scheduler_path}")
@@ -65,7 +67,6 @@ def main(config, args):
                 "skip_prk_steps": True
             }
             
-            import json
             with open(scheduler_config_file, 'w') as f:
                 json.dump(scheduler_config, f, indent=2)
             
@@ -89,11 +90,12 @@ def main(config, args):
             skip_prk_steps=True
         )
 
+    model_dir = os.path.dirname(args.inference_ckpt_path)
     # Use relative paths for whisper models as well
     if config.model.cross_attention_dim == 768:
-        whisper_model_path = os.path.join(current_dir, "..", "checkpoints", "whisper", "small.pt")
+        whisper_model_path = os.path.join(model_dir, "..", "checkpoints", "whisper", "small.pt")
     elif config.model.cross_attention_dim == 384:
-        whisper_model_path = os.path.join(current_dir, "..", "checkpoints", "whisper", "tiny.pt")
+        whisper_model_path = os.path.join(model_dir, "..", "checkpoints", "whisper", "tiny.pt")
     else:
         raise NotImplementedError("cross_attention_dim must be 768 or 384")
 
@@ -104,7 +106,19 @@ def main(config, args):
         audio_feat_length=config.data.audio_feat_length,
     )
 
-    vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", torch_dtype=dtype)
+    if args.vae_model_path and len(args.vae_model_path) > 0:
+        # 根据模型配置初始化
+        vae_config_path = os.path.join(current_dir, "..", "configs", "vae", "config.json")
+        with open(vae_config_path, "r", encoding="utf-8") as f:
+            vae_config_dict = json.load(f)
+        vae = AutoencoderKL.from_config(vae_config_dict)
+        # 加载单文件权重
+        state_dict = safetensors.torch.load_file(args.vae_model_path)
+        vae.load_state_dict(convert_vae_state_dict_to_hf(state_dict), strict=False)
+        vae.to(dtype=dtype)
+    else:
+        vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", torch_dtype=dtype)
+
     vae.config.scaling_factor = 0.18215
     vae.config.shift_factor = 0
 
@@ -155,6 +169,7 @@ if __name__ == "__main__":
     parser.add_argument("--inference_steps", type=int, default=20)
     parser.add_argument("--guidance_scale", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=1247)
+    parser.add_argument("--vae_model_path", type=str, default="")
     args = parser.parse_args()
 
     config = OmegaConf.load(args.unet_config_path)
