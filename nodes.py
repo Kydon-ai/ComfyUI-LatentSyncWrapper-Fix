@@ -6,19 +6,13 @@ import shutil
 
 # Function to find ComfyUI directories
 def get_comfyui_temp_dir():
-    """Dynamically find the ComfyUI temp directory without modifying it"""
+    """Dynamically find the ComfyUI temp directory"""
     # First check using folder_paths if available
     try:
         import folder_paths
-        temp_dir = folder_paths.get_temp_directory()
-        if temp_dir and os.path.exists(temp_dir):
-            return temp_dir
-            
-        # If that didn't work, try the alternative method
         comfy_dir = os.path.dirname(os.path.dirname(os.path.abspath(folder_paths.__file__)))
         temp_dir = os.path.join(comfy_dir, "temp")
-        if os.path.exists(temp_dir):
-            return temp_dir
+        return temp_dir
     except:
         pass
     
@@ -30,109 +24,98 @@ def get_comfyui_temp_dir():
         potential_dir = current_dir
         for _ in range(5):  # Limit to 5 levels up
             if os.path.exists(os.path.join(potential_dir, "comfy.py")):
-                temp_dir = os.path.join(potential_dir, "temp")
-                if not os.path.exists(temp_dir):
-                    os.makedirs(temp_dir, exist_ok=True)
-                return temp_dir
+                return os.path.join(potential_dir, "temp")
             potential_dir = os.path.dirname(potential_dir)
     except:
         pass
     
-    # If we still can't find it, fallback to system temp as last resort
-    system_temp = tempfile.gettempdir()
-    comfy_temp = os.path.join(system_temp, "comfyui_temp")
-    os.makedirs(comfy_temp, exist_ok=True)
-    return comfy_temp
+    # Return None if we can't find it
+    return None
 
-# Replace the init_temp_directories function with this version that respects ComfyUI's temp dir
+# Function to clean up any ComfyUI temp directories
+def cleanup_comfyui_temp_directories():
+    """Find and clean up any ComfyUI temp directories"""
+    comfyui_temp = get_comfyui_temp_dir()
+    if not comfyui_temp:
+        print("Could not locate ComfyUI temp directory")
+        return
+    
+    comfyui_base = os.path.dirname(comfyui_temp)
+    
+    # Check for the main temp directory
+    if os.path.exists(comfyui_temp):
+        try:
+            shutil.rmtree(comfyui_temp)
+            print(f"Removed ComfyUI temp directory: {comfyui_temp}")
+        except Exception as e:
+            print(f"Could not remove {comfyui_temp}: {str(e)}")
+            # If we can't remove it, try to rename it
+            try:
+                backup_name = f"{comfyui_temp}_backup_{uuid.uuid4().hex[:8]}"
+                os.rename(comfyui_temp, backup_name)
+                print(f"Renamed {comfyui_temp} to {backup_name}")
+            except:
+                pass
+    
+    # Find and clean up any backup temp directories
+    try:
+        all_directories = [d for d in os.listdir(comfyui_base) if os.path.isdir(os.path.join(comfyui_base, d))]
+        for dirname in all_directories:
+            if dirname.startswith("temp_backup_"):
+                backup_path = os.path.join(comfyui_base, dirname)
+                try:
+                    shutil.rmtree(backup_path)
+                    print(f"Removed backup temp directory: {backup_path}")
+                except Exception as e:
+                    print(f"Could not remove backup dir {backup_path}: {str(e)}")
+    except Exception as e:
+        print(f"Error cleaning up temp directories: {str(e)}")
+
+# Create a module-level function to set up system-wide temp directory
 def init_temp_directories():
-    """Initialize LatentSync temp directories without disrupting ComfyUI's temp dir"""
-    # Get ComfyUI's temp directory
-    comfyui_temp = get_comfyui_temp_dir()
+    """Initialize global temporary directory settings"""
+    # First clean up any existing temp directories
+    cleanup_comfyui_temp_directories()
     
-    # Create a subdirectory within ComfyUI's temp directory for LatentSync
+    # Generate a unique base directory for this module
+    system_temp = tempfile.gettempdir()
     unique_id = str(uuid.uuid4())[:8]
-    latentsync_temp = os.path.join(comfyui_temp, f"latentsync_{unique_id}")
-    os.makedirs(latentsync_temp, exist_ok=True)
+    temp_base_path = os.path.join(system_temp, f"latentsync_{unique_id}")
+    os.makedirs(temp_base_path, exist_ok=True)
     
-    print(f"Created LatentSync temp directory: {latentsync_temp}")
-    return latentsync_temp
-
-# Replace the cleanup_comfyui_temp_directories function with this version
-def cleanup_latentsync_temp_directories():
-    """Clean up only LatentSync temp directories without touching ComfyUI's main temp"""
+    # Override environment variables that control temp directories
+    os.environ['TMPDIR'] = temp_base_path
+    os.environ['TEMP'] = temp_base_path
+    os.environ['TMP'] = temp_base_path
+    
+    # Force Python's tempfile module to use our directory
+    tempfile.tempdir = temp_base_path
+    
+    # Final check for ComfyUI temp directory
     comfyui_temp = get_comfyui_temp_dir()
+    if comfyui_temp and os.path.exists(comfyui_temp):
+        try:
+            shutil.rmtree(comfyui_temp)
+            print(f"Removed ComfyUI temp directory: {comfyui_temp}")
+        except Exception as e:
+            print(f"Could not remove {comfyui_temp}, trying to rename: {str(e)}")
+            try:
+                backup_name = f"{comfyui_temp}_backup_{unique_id}"
+                os.rename(comfyui_temp, backup_name)
+                print(f"Renamed {comfyui_temp} to {backup_name}")
+                # Try to remove the renamed directory as well
+                try:
+                    shutil.rmtree(backup_name)
+                    print(f"Removed renamed temp directory: {backup_name}")
+                except:
+                    pass
+            except:
+                print(f"Failed to rename {comfyui_temp}")
     
-    # Find and clean up only LatentSync temp directories
-    try:
-        if os.path.exists(comfyui_temp):
-            all_directories = [d for d in os.listdir(comfyui_temp) 
-                              if os.path.isdir(os.path.join(comfyui_temp, d))
-                              and d.startswith("latentsync_")]
-            
-            for dirname in all_directories:
-                latentsync_path = os.path.join(comfyui_temp, dirname)
-                try:
-                    shutil.rmtree(latentsync_path)
-                    print(f"Removed LatentSync temp directory: {latentsync_path}")
-                except Exception as e:
-                    print(f"Could not remove {latentsync_path}: {str(e)}")
-    except Exception as e:
-        print(f"Error cleaning up LatentSync temp directories: {str(e)}")
+    print(f"Set up system temp directory: {temp_base_path}")
+    return temp_base_path
 
-def cleanup_output_files():
-    """Remove leftover audio.wav and video.mp4 files from the ComfyUI temp directory"""
-    try:
-        comfyui_temp = get_comfyui_temp_dir()
-        if os.path.exists(comfyui_temp):
-            # List of common output filenames to clean up
-            output_files = ["audio.wav", "video.mp4"]
-            
-            for filename in output_files:
-                filepath = os.path.join(comfyui_temp, filename)
-                if os.path.exists(filepath):
-                    try:
-                        os.remove(filepath)
-                        print(f"Removed output file: {filepath}")
-                    except Exception as e:
-                        print(f"Could not remove {filepath}: {str(e)}")
-            
-            # After removing files, check if the directory is empty
-            if os.path.exists(comfyui_temp) and len(os.listdir(comfyui_temp)) == 0:
-                try:
-                    # Instead of removing it (which might cause issues if ComfyUI expects it),
-                    # we'll recreate it to ensure it's an empty directory
-                    shutil.rmtree(comfyui_temp)
-                    os.makedirs(comfyui_temp, exist_ok=True)
-                    print(f"Recreated empty temp directory: {comfyui_temp}")
-                except Exception as e:
-                    print(f"Could not recreate temp directory: {str(e)}")
-                    
-            # Also check if there's another temp directory at the root level
-            comfy_root = os.path.dirname(os.path.dirname(comfyui_temp))
-            alt_temp = os.path.join(comfy_root, "temp")
-            if os.path.exists(alt_temp) and alt_temp != comfyui_temp:
-                # Remove files first
-                for filename in output_files:
-                    filepath = os.path.join(alt_temp, filename)
-                    if os.path.exists(filepath):
-                        try:
-                            os.remove(filepath)
-                            print(f"Removed output file from alt location: {filepath}")
-                        except Exception as e:
-                            print(f"Could not remove {filepath} from alt location: {str(e)}")
-                
-                # Then check if we can remove the directory itself if it's empty
-                if len(os.listdir(alt_temp)) == 0:
-                    try:
-                        shutil.rmtree(alt_temp)
-                        print(f"Removed empty alt temp directory: {alt_temp}")
-                    except Exception as e:
-                        print(f"Could not remove alt temp directory: {str(e)}")
-    except Exception as e:
-        print(f"Error cleaning up output files: {str(e)}")
-
-# Update module_cleanup function to use our new cleanup function
+# Function to clean up everything when the module exits
 def module_cleanup():
     """Clean up all resources when the module is unloaded"""
     global MODULE_TEMP_DIR
@@ -145,8 +128,8 @@ def module_cleanup():
         except:
             pass
     
-    # Clean up only LatentSync temp directories
-    cleanup_latentsync_temp_directories()
+    # Do a final sweep for any ComfyUI temp directories
+    cleanup_comfyui_temp_directories()
 
 # Call this before anything else
 MODULE_TEMP_DIR = init_temp_directories()
@@ -172,9 +155,13 @@ from PIL import Image
 from decimal import Decimal, ROUND_UP
 import requests
 
-# Store the original get_temp_directory function for reference if needed
+# Modify folder_paths module to use our temp directory
 if hasattr(folder_paths, "get_temp_directory"):
     original_get_temp = folder_paths.get_temp_directory
+    folder_paths.get_temp_directory = lambda: MODULE_TEMP_DIR
+else:
+    # Add the function if it doesn't exist
+    setattr(folder_paths, 'get_temp_directory', lambda: MODULE_TEMP_DIR)
 
 def import_inference_script(script_path):
     """Import a Python file as a module using its file path."""
@@ -362,6 +349,15 @@ class LatentSyncNode:
         if not os.path.exists(MODULE_TEMP_DIR):
             os.makedirs(MODULE_TEMP_DIR, exist_ok=True)
         
+        # Ensure ComfyUI temp doesn't exist
+        comfyui_temp = "D:\\ComfyUI_windows\\temp"
+        if os.path.exists(comfyui_temp):
+            backup_name = f"{comfyui_temp}_backup_{uuid.uuid4().hex[:8]}"
+            try:
+                os.rename(comfyui_temp, backup_name)
+            except:
+                pass
+        
         check_and_install_dependencies()
         setup_models()
 
@@ -433,6 +429,15 @@ class LatentSyncNode:
         run_id = ''.join(random.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(5))
         temp_dir = os.path.join(MODULE_TEMP_DIR, f"run_{run_id}")
         os.makedirs(temp_dir, exist_ok=True)
+        
+        # Ensure ComfyUI temp doesn't exist again (in case something recreated it)
+        comfyui_temp = "D:\\ComfyUI_windows\\temp"
+        if os.path.exists(comfyui_temp):
+            backup_name = f"{comfyui_temp}_backup_{uuid.uuid4().hex[:8]}"
+            try:
+                os.rename(comfyui_temp, backup_name)
+            except:
+                pass
         
         temp_video_path = None
         output_video_path = None
@@ -557,6 +562,13 @@ class LatentSyncNode:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
                 
+            # Check and prevent ComfyUI temp creation again
+            if os.path.exists(comfyui_temp):
+                try:
+                    os.rename(comfyui_temp, f"{comfyui_temp}_backup_{uuid.uuid4().hex[:8]}")
+                except:
+                    pass
+
             # Import the inference module
             inference_module = import_inference_script(inference_script_path)
             
@@ -616,11 +628,8 @@ class LatentSyncNode:
                 except Exception as e:
                     print(f"Failed to remove temp run directory: {str(e)}")
 
-            # Clean up any LatentSync temp directories
-            cleanup_latentsync_temp_directories()
-            
-            # NEW: Clean up output files in the ComfyUI temp directory
-            cleanup_output_files()
+            # Clean up any ComfyUI temp directories again (in case they were created during execution)
+            cleanup_comfyui_temp_directories()
 
             # Final GPU cache cleanup
             if torch.cuda.is_available():
