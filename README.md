@@ -14,6 +14,10 @@ This node provides advanced lip-sync capabilities in ComfyUI using ByteDance's L
 ### New: DG_VideoAudioMixer
 ![image](https://github.com/user-attachments/assets/f2ac06b5-84ff-465a-84e1-6fb4d7b07f82)
 
+DG_VideoAudioMixer example:
+
+https://github.com/user-attachments/assets/faac6a78-9fe2-4802-9764-031474cda23f
+
 
 
 ## What's new in LatentSync 1.5?
