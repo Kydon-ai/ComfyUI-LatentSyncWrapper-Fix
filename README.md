@@ -11,7 +11,9 @@ This node provides advanced lip-sync capabilities in ComfyUI using ByteDance's L
 
 ![image](https://github.com/user-attachments/assets/85e4dafe-2adf-4994-9440-8a435a5ea6d8)
 
-### April-29-25 - Updeate LatenrSync 1.5 to last version for better output resolution.
+### Last Changes:
+#### April-29-25 - To avoid GPU memory allocation issues, frames are now moved to CPU before uint8 conversion. This change enables generation of longer videos without OOM errors.
+#### April-29-25 - Updeate LatenrSync 1.5 to last version for better output resolution.
 ## What's new in LatentSync 1.5?
 
 1. **Temporal Layer Improvements**: Corrected implementation now provides significantly improved temporal consistency compared to version 1.0
