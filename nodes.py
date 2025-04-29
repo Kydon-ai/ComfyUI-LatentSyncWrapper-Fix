@@ -459,10 +459,12 @@ class LatentSyncNode:
                 frames = torch.stack(images).to(device)
             else:
                 frames = images.to(device)
-            frames = (frames * 255).byte()
+ 
+            frames_cpu = frames.cpu()  
+            del frames  
+            torch.cuda.empty_cache()  
 
-            if len(frames.shape) == 3:
-                frames = frames.unsqueeze(0)
+            frames = (frames_cpu * 255).to(torch.uint8)
 
             # Process audio with device awareness
             waveform = audio["waveform"].to(device)
