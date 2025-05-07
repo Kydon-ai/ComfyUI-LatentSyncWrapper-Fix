@@ -496,21 +496,28 @@ class LatentSyncNode:
             try:
                 import torchvision.io as io
                 io.write_video(temp_video_path, frames_cpu, fps=25, video_codec='h264')
-            except TypeError:
-                import av
-                container = av.open(temp_video_path, mode='w')
-                stream = container.add_stream('h264', rate=25)
-                stream.width = frames_cpu.shape[2]
-                stream.height = frames_cpu.shape[1]
+            except TypeError as e:
+                # Check if the error is specifically about macro_block_size
+                if "macro_block_size" in str(e):
+                    import imageio
+                    # Use imageio with macro_block_size parameter
+                    imageio.mimsave(temp_video_path, frames_cpu.numpy(), fps=25, codec='h264', macro_block_size=1)
+                else:
+                    # Fall back to original PyAV code for other TypeError issues
+                    import av
+                    container = av.open(temp_video_path, mode='w')
+                    stream = container.add_stream('h264', rate=25)
+                    stream.width = frames_cpu.shape[2]
+                    stream.height = frames_cpu.shape[1]
 
-                for frame in frames_cpu:
-                    frame = av.VideoFrame.from_ndarray(frame.numpy(), format='rgb24')
-                    packet = stream.encode(frame)
+                    for frame in frames_cpu:
+                        frame = av.VideoFrame.from_ndarray(frame.numpy(), format='rgb24')
+                        packet = stream.encode(frame)
+                        container.mux(packet)
+
+                    packet = stream.encode(None)
                     container.mux(packet)
-
-                packet = stream.encode(None)
-                container.mux(packet)
-                container.close()
+                    container.close()
 
             # Define paths to required files and configs
             inference_script_path = os.path.join(cur_dir, "scripts", "inference.py")
