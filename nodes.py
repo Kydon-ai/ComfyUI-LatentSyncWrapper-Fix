@@ -5,6 +5,7 @@ import uuid
 import sys
 import shutil
 from collections.abc import Mapping
+from datetime import datetime
 
 # Function to find ComfyUI directories
 def get_comfyui_temp_dir():
@@ -228,6 +229,15 @@ def check_and_install_dependencies():
         'ffmpeg-python' 
     ]
 
+    # Create a flag file to remember we've already installed packages
+    user_home = os.path.expanduser("~")
+    dependencies_installed_flag = os.path.join(user_home, ".latentsync_dependencies_installed")
+    
+    # Skip installation if we've already done it before
+    if os.path.exists(dependencies_installed_flag):
+        print("Dependencies already installed from previous run")
+        return
+        
     def is_package_installed(package_name):
         return importlib.util.find_spec(package_name) is not None
 
@@ -242,14 +252,29 @@ def check_and_install_dependencies():
             print(f"Error installing {package}: {str(e)}")
             raise RuntimeError(f"Failed to install required package: {package}")
 
+    missing_packages = []
     for package in required_packages:
         if not is_package_installed(package):
-            print(f"Installing required package: {package}")
+            missing_packages.append(package)
+    
+    if missing_packages:
+        print(f"Installing missing dependencies: {', '.join(missing_packages)}")
+        for package in missing_packages:
             try:
                 install_package(package)
             except Exception as e:
                 print(f"Warning: Failed to install {package}: {str(e)}")
                 raise
+    else:
+        print("All dependencies are already installed")
+    
+    # Create flag file to remember we've installed packages
+    try:
+        with open(dependencies_installed_flag, "w") as f:
+            f.write("Dependencies installed on " + str(datetime.now()))
+        print("Recorded dependencies installation status")
+    except:
+        print("Failed to create dependencies flag file - might reinstall next time")
 
 def normalize_path(path):
     """Normalize path to handle spaces and special characters"""
@@ -286,30 +311,38 @@ def download_model(url, save_path):
             f.write(chunk)
 
 def pre_download_models():
-    """Pre-download all required models."""
+    """Pre-download all required models and cache them properly."""
     models = {
         "s3fd-e19a316812.pth": "https://huggingface.co/vinthony/SadTalker/resolve/main/hub/checkpoints/s3fd-619a316812.pth",
         # Add other models here
     }
 
-    cache_dir = os.path.join(MODULE_TEMP_DIR, "model_cache")
-    os.makedirs(cache_dir, exist_ok=True)
+    # Use a persistent location for model cache instead of temporary directory
+    # This ensures models are downloaded only once across all runs
+    user_home = os.path.expanduser("~")
+    persistent_cache_dir = os.path.join(user_home, ".latentsync_models")
+    os.makedirs(persistent_cache_dir, exist_ok=True)
     
     for model_name, url in models.items():
-        save_path = os.path.join(cache_dir, model_name)
+        save_path = os.path.join(persistent_cache_dir, model_name)
         if not os.path.exists(save_path):
-            print(f"Downloading {model_name}...")
-            download_model(url, save_path)
+            print(f"Model {model_name} not found in cache. Downloading...")
+            try:
+                download_model(url, save_path)
+                print(f"Successfully downloaded {model_name} to {save_path}")
+            except Exception as e:
+                print(f"Error downloading {model_name}: {str(e)}")
+                print(f"You may need to download it manually from {url}")
         else:
-            print(f"{model_name} already exists in cache.")
+            print(f"Model {model_name} already exists in cache at {save_path}")
+    
+    # Return the cache directory so we can use it later
+    return persistent_cache_dir
 
 def setup_models():
     """Setup and pre-download all required models."""
-    # Use our global temp directory
-    global MODULE_TEMP_DIR
-    
-    # Pre-download additional models
-    pre_download_models()
+    # Pre-download additional models to a persistent location
+    persistent_cache_dir = pre_download_models()
 
     # Existing setup logic for LatentSync models
     cur_dir = get_ext_dir()
@@ -325,20 +358,46 @@ def setup_models():
     unet_path = os.path.join(ckpt_dir, "latentsync_unet.pt")
     whisper_path = os.path.join(whisper_dir, "tiny.pt")
 
+    # Check if models exist in the persistent cache first and copy them if needed
+    cache_unet_path = os.path.join(persistent_cache_dir, "latentsync_unet.pt")
+    cache_whisper_path = os.path.join(persistent_cache_dir, "whisper/tiny.pt")
+    
+    if os.path.exists(cache_unet_path) and not os.path.exists(unet_path):
+        print(f"Copying unet model from cache {cache_unet_path} to {unet_path}")
+        shutil.copy2(cache_unet_path, unet_path)
+    
+    if os.path.exists(cache_whisper_path) and not os.path.exists(whisper_path):
+        print(f"Copying whisper model from cache {cache_whisper_path} to {whisper_path}")
+        os.makedirs(os.path.dirname(whisper_path), exist_ok=True)
+        shutil.copy2(cache_whisper_path, whisper_path)
+
+    # Only download if models aren't in the working directory and weren't in the cache
     if not (os.path.exists(unet_path) and os.path.exists(whisper_path)):
         print("Downloading required model checkpoints... This may take a while.")
         try:
             from huggingface_hub import snapshot_download
+            
+            # Download to the persistent cache first
             snapshot_download(repo_id="ByteDance/LatentSync-1.5",
-                             allow_patterns=["latentsync_unet.pt", "whisper/tiny.pt"],
-                             local_dir=ckpt_dir, 
-                             local_dir_use_symlinks=False,
-                             cache_dir=temp_downloads)
+                            allow_patterns=["latentsync_unet.pt", "whisper/tiny.pt"],
+                            local_dir=persistent_cache_dir, 
+                            local_dir_use_symlinks=False,
+                            cache_dir=temp_downloads)
+            
+            # Then copy to the working directory if needed
+            if not os.path.exists(unet_path) and os.path.exists(os.path.join(persistent_cache_dir, "latentsync_unet.pt")):
+                shutil.copy2(os.path.join(persistent_cache_dir, "latentsync_unet.pt"), unet_path)
+            
+            cache_whisper_tiny = os.path.join(persistent_cache_dir, "whisper/tiny.pt")
+            if not os.path.exists(whisper_path) and os.path.exists(cache_whisper_tiny):
+                os.makedirs(os.path.dirname(whisper_path), exist_ok=True)
+                shutil.copy2(cache_whisper_tiny, whisper_path)
+                
             print("Model checkpoints downloaded successfully!")
         except Exception as e:
             print(f"Error downloading models: {str(e)}")
             print("\nPlease download models manually:")
-            print("1. Visit: https://huggingface.co/chunyu-li/LatentSync")
+            print("1. Visit: https://huggingface.co/ByteDance/LatentSync-1.5")
             print("2. Download: latentsync_unet.pt and whisper/tiny.pt")
             print(f"3. Place them in: {ckpt_dir}")
             print(f"   with whisper/tiny.pt in: {whisper_dir}")
