@@ -288,7 +288,7 @@ def download_model(url, save_path):
 def pre_download_models():
     """Pre-download all required models."""
     models = {
-        "s3fd-e19a316812.pth": "https://www.adrianbulat.com/downloads/python-fan/s3fd-e19a316812.pth",
+        "s3fd-e19a316812.pth": "https://huggingface.co/vinthony/SadTalker/resolve/main/hub/checkpoints/s3fd-619a316812.pth",
         # Add other models here
     }
 
