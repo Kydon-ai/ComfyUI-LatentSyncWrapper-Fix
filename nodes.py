@@ -231,7 +231,7 @@ def check_and_install_dependencies():
 
     # Create a flag file to remember we've already installed packages
     user_home = os.path.expanduser("~")
-    dependencies_installed_flag = os.path.join(user_home, ".latentsync_dependencies_installed")
+    dependencies_installed_flag = os.path.join(user_home, ".latentsync16_dependencies_installed")
     
     # Skip installation if we've already done it before
     if os.path.exists(dependencies_installed_flag):
@@ -320,7 +320,7 @@ def pre_download_models():
     # Use a persistent location for model cache instead of temporary directory
     # This ensures models are downloaded only once across all runs
     user_home = os.path.expanduser("~")
-    persistent_cache_dir = os.path.join(user_home, ".latentsync_models")
+    persistent_cache_dir = os.path.join(user_home, ".latentsync16_models")
     os.makedirs(persistent_cache_dir, exist_ok=True)
     
     for model_name, url in models.items():
@@ -338,6 +338,24 @@ def pre_download_models():
     
     # Return the cache directory so we can use it later
     return persistent_cache_dir
+
+def get_latentsync_config_path(cur_dir):
+    """Automatically detect the best config file for LatentSync version"""
+    # Try 1.6 config first (512x512)
+    config_512 = os.path.join(cur_dir, "configs", "unet", "stage2_512.yaml")
+    if os.path.exists(config_512):
+        print("Using LatentSync 1.6 config (512x512)")
+        return config_512
+    
+    # Fallback to 1.5 config (256x256)
+    config_256 = os.path.join(cur_dir, "configs", "unet", "stage2.yaml")
+    if os.path.exists(config_256):
+        print("Using LatentSync 1.5 config (256x256)")
+        return config_256
+    
+    # If neither exists, default to 1.6
+    print("Config files not found, defaulting to LatentSync 1.6 config")
+    return config_512
 
 def setup_models():
     """Setup and pre-download all required models."""
@@ -373,12 +391,12 @@ def setup_models():
 
     # Only download if models aren't in the working directory and weren't in the cache
     if not (os.path.exists(unet_path) and os.path.exists(whisper_path)):
-        print("Downloading required model checkpoints... This may take a while.")
+        print("Downloading required LatentSync 1.6 model checkpoints... This may take a while.")
         try:
             from huggingface_hub import snapshot_download
             
             # Download to the persistent cache first
-            snapshot_download(repo_id="ByteDance/LatentSync-1.5",
+            snapshot_download(repo_id="ByteDance/LatentSync-1.6",
                             allow_patterns=["latentsync_unet.pt", "whisper/tiny.pt"],
                             local_dir=persistent_cache_dir, 
                             local_dir_use_symlinks=False,
@@ -393,11 +411,11 @@ def setup_models():
                 os.makedirs(os.path.dirname(whisper_path), exist_ok=True)
                 shutil.copy2(cache_whisper_tiny, whisper_path)
                 
-            print("Model checkpoints downloaded successfully!")
+            print("LatentSync 1.6 model checkpoints downloaded successfully!")
         except Exception as e:
             print(f"Error downloading models: {str(e)}")
             print("\nPlease download models manually:")
-            print("1. Visit: https://huggingface.co/ByteDance/LatentSync-1.5")
+            print("1. Visit: https://huggingface.co/ByteDance/LatentSync-1.6")
             print("2. Download: latentsync_unet.pt and whisper/tiny.pt")
             print(f"3. Place them in: {ckpt_dir}")
             print(f"   with whisper/tiny.pt in: {whisper_dir}")
@@ -580,7 +598,7 @@ class LatentSyncNode:
 
             # Define paths to required files and configs
             inference_script_path = os.path.join(cur_dir, "scripts", "inference.py")
-            config_path = os.path.join(cur_dir, "configs", "unet", "stage2.yaml")
+            config_path = get_latentsync_config_path(cur_dir)
             scheduler_config_path = os.path.join(cur_dir, "configs")
             ckpt_path = os.path.join(cur_dir, "checkpoints", "latentsync_unet.pt")
             whisper_ckpt_path = os.path.join(cur_dir, "checkpoints", "whisper", "tiny.pt")
@@ -813,6 +831,6 @@ NODE_CLASS_MAPPINGS = {
 
 # Display Names for ComfyUI
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "LatentSyncNode": "LatentSync1.5 Node",
+    "LatentSyncNode": "LatentSync1.6 Node",
     "VideoLengthAdjuster": "Video Length Adjuster",
- }
+}
