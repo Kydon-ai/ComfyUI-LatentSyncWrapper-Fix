@@ -49,7 +49,7 @@ Before installing this node, you must install the following in order:
 
 ## Installation
 
-**Note**: Before proceeding, ensure you have access to the private ByteDance/LatentSync-1.6 HuggingFace repository for model downloads.
+**Note**: A complete pre-configured checkpoints package is available via Google Drive (recommended), or you can download models individually from HuggingFace repositories.
 
 Only proceed with installation after confirming all prerequisites are installed and working.
 
@@ -81,6 +81,21 @@ DeepCache
 ## Manual Model Download Required
 
 **Important**: LatentSync 1.6 requires manual model downloads because the LatentSync 1.6 models are hosted on a private HuggingFace repository that cannot be automatically accessed. You must download the following models before first use:
+
+### Option 1: Complete Checkpoints Package (Recommended)
+
+**Easiest method**: Download the complete pre-configured checkpoints folder:
+
+1. **Download the 7zip archive**: https://drive.google.com/file/d/1OTZQdFv7Bnz9MIgZowj_dXTaLjQwjEMy/view?usp=sharing
+2. **Extract the archive** to get the complete `checkpoints` folder
+3. **Replace/merge** with your existing `checkpoints` folder in the extension directory
+4. **All models included** - no additional downloads needed!
+
+This package includes all required models: LatentSync 1.6, VAE, and auxiliary models.
+
+### Option 2: Manual Individual Downloads
+
+If you prefer to download models individually:
 
 ### 1. VAE Model Download
 Create a `vae` folder inside your `checkpoints` directory and download the VAE model:
@@ -120,7 +135,7 @@ Download the main LatentSync 1.6 models:
 
 ### Checkpoint Directory Structure
 
-After manual model downloads, your checkpoint directory structure should look like this:
+After downloading models (using either option), your checkpoint directory structure should look like this:
 
 ```
 ./checkpoints/
@@ -183,8 +198,8 @@ The processed video will be saved in ComfyUI's output directory.
 - Currently does not support anime/cartoon faces
 - Video should be at 25 FPS (will be automatically converted)
 - Face should be visible throughout the video
-- **Requires manual model downloads** - LatentSync 1.6 models are hosted on a private HuggingFace repository and cannot be automatically downloaded
-- Users must have access to the ByteDance/LatentSync-1.6 HuggingFace repository to download the required models
+- **Requires manual model downloads** - LatentSync 1.6 models are hosted on a private HuggingFace repository, but a complete package is available via Google Drive
+- Individual model downloads require access to the ByteDance/LatentSync-1.6 HuggingFace repository
 
 ## Credits
 
