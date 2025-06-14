@@ -103,12 +103,6 @@ Create a `vae` folder inside your `checkpoints` directory and download the VAE m
 ```bash
 # Create the vae directory
 mkdir checkpoints/vae
-
-# Download VAE model from HuggingFace
-# Visit: https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main
-# Download ONLY these files into checkpoints/vae/:
-# - diffusion_pytorch_model.safetensors
-# - config.json
 ```
 
 **Manual download steps:**
@@ -116,7 +110,7 @@ mkdir checkpoints/vae
 2. Download **only these 2 files**:
    - `diffusion_pytorch_model.safetensors`
    - `config.json`
-3. Place them in `checkpoints/vae/` folder
+3. Place them in `checkpoints/vae/` folder (inside the extension directory)
 
 ### 2. LatentSync 1.6 Checkpoints Download
 Download the main LatentSync 1.6 models:
