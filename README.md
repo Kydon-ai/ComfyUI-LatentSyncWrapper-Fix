@@ -91,12 +91,16 @@ mkdir checkpoints/vae
 
 # Download VAE model from HuggingFace
 # Visit: https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main
-# Download all files from the repository into checkpoints/vae/
+# Download ONLY these files into checkpoints/vae/:
+# - diffusion_pytorch_model.safetensors
+# - config.json
 ```
 
 **Manual download steps:**
 1. Visit: https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main
-2. Download all files from the repository
+2. Download **only these 2 files**:
+   - `diffusion_pytorch_model.safetensors`
+   - `config.json`
 3. Place them in `checkpoints/vae/` folder
 
 ### 2. LatentSync 1.6 Checkpoints Download
@@ -124,9 +128,7 @@ After manual model downloads, your checkpoint directory structure should look li
 |-- auxiliary/
 |-- vae/
 |   |-- config.json
-|   |-- diffusion_pytorch_model.bin
-|   |-- diffusion_pytorch_model.safetensors
-|   `-- (other VAE files)
+|   `-- diffusion_pytorch_model.safetensors
 |-- whisper/
 |   `-- tiny.pt
 |-- config.json
@@ -135,7 +137,8 @@ After manual model downloads, your checkpoint directory structure should look li
 ```
 
 Make sure all these files are present for proper functionality. The main model files are:
-- `vae/`: The Stable Diffusion VAE model for encoding/decoding
+- `vae/diffusion_pytorch_model.safetensors`: The Stable Diffusion VAE model for encoding/decoding
+- `vae/config.json`: VAE configuration file
 - `latentsync_unet.pt`: The primary LatentSync 1.6 model trained at 512×512 resolution
 - `stable_syncnet.pt`: The SyncNet model for lip-sync supervision
 - `whisper/tiny.pt`: The Whisper model for audio processing
