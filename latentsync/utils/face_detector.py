@@ -45,7 +45,7 @@ class FaceDetector:
         else:
             face = get_face_store
             lmk = np.round(face.landmark_2d_106).astype(np.int_)
-            print("***查看lmk的维度：{}".format(lmk.shape))
+            # print("***查看lmk的维度：{}".format(lmk.shape))
             halk_face_coord = np.mean([lmk[74], lmk[73]], axis=0)  # lmk[73]
 
             sub_lmk = lmk[LMK_ADAPT_ORIGIN_ORDER]
