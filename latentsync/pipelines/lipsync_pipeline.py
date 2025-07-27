@@ -252,50 +252,69 @@ class LipsyncPipeline(DiffusionPipeline):
         return images
 
     def affine_transform_video(self, video_frames: np.ndarray):
+        bboxs = []
         faces = []
         boxes = []
         affine_matrices = []
         print(f"Affine transforming {len(video_frames)} faces...")
-        for frame in tqdm.tqdm(video_frames):
-            face, box, affine_matrix = self.image_processor.affine_transform(frame)
+        for i, frame in enumerate(tqdm.tqdm(video_frames)):
+            bbox, face, box, affine_matrix = self.image_processor.affine_transform(frame)
+            # print("***face:{}, box:{}, affine_matrix:{}".format(face, box, affine_matrix))
+            print("[LatentSyncWrapper Fix]: 第 {} 帧{}检测到人脸。".format(i,"" if bbox else "未"))
+            bboxs.append(bbox)
             faces.append(face)
             boxes.append(box)
             affine_matrices.append(affine_matrix)
+        # print("***faces:{},boxes:{},affine_matrices:{}".format(faces,boxes,affine_matrices))
+        print("[LatentSyncWrapper Fix]: see affine_transform_video,bboxs's len:{},faces's len:{}".format(len(bboxs), len(faces)))
+        faces = torch.stack(faces) 
+        print("[LatentSyncWrapper Fix]: see affine_transform_video,bboxs's len:{},faces's len:{}".format(len(bboxs), faces.shape))
+        return bboxs,faces, boxes, affine_matrices
 
-        faces = torch.stack(faces)
-        return faces, boxes, affine_matrices
-
-    def restore_video(self, faces: torch.Tensor, video_frames: np.ndarray, boxes: list, affine_matrices: list):
+    def restore_video(self,bboxs,faces: torch.Tensor, video_frames: np.ndarray, boxes: list, affine_matrices: list):
         video_frames = video_frames[: len(faces)]
         out_frames = []
         print(f"Restoring {len(faces)} faces...")
+        # 一个是list，一个是tensor
+        print("[LatentSyncWrapper Fix]: bboxs's len:{},faces's len:{}".format(len(bboxs),faces.shape))
+        # 下面是修复帧流程，根据bboxs来判断是否需要修复，可以使用cv2查看每一帧
         for index, face in enumerate(tqdm.tqdm(faces)):
             x1, y1, x2, y2 = boxes[index]
             height = int(y2 - y1)
             width = int(x2 - x1)
-            face = torchvision.transforms.functional.resize(
-                face, size=(height, width), interpolation=transforms.InterpolationMode.BICUBIC, antialias=True
-            )
-            out_frame = self.image_processor.restorer.restore_img(video_frames[index], face, affine_matrices[index])
-            out_frames.append(out_frame)
+            # 为True时为检测到人脸，为False时为未检测到人脸
+            if (bboxs[index]):
+                face = torchvision.transforms.functional.resize(
+                    face, size=(height, width), interpolation=transforms.InterpolationMode.BICUBIC, antialias=True
+                )
+                # 添加和音频对齐的嘴型
+                out_frame = self.image_processor.restorer.restore_img(video_frames[index], face, affine_matrices[index])
+                out_frames.append(out_frame)
+            else:
+                out_frames.append(video_frames[index])
         return np.stack(out_frames, axis=0)
 
     def loop_video(self, whisper_chunks: list, video_frames: np.ndarray):
         # If the audio is longer than the video, we need to loop the video
+        print("[LatentSyncWrapper Fix]: 查看音频长度：{}，视频长度：{}".format(len(whisper_chunks) , len(video_frames)))
         if len(whisper_chunks) > len(video_frames):
-            faces, boxes, affine_matrices = self.affine_transform_video(video_frames)
+            print("[LatentSyncWrapper Fix]: trap in if!")
+            bboxs, faces, boxes, affine_matrices = self.affine_transform_video(video_frames)
             num_loops = math.ceil(len(whisper_chunks) / len(video_frames))
+            loop_bboxs = []
             loop_video_frames = []
             loop_faces = []
             loop_boxes = []
             loop_affine_matrices = []
             for i in range(num_loops):
                 if i % 2 == 0:
+                    loop_bboxs += bboxs
                     loop_video_frames.append(video_frames)
                     loop_faces.append(faces)
                     loop_boxes += boxes
                     loop_affine_matrices += affine_matrices
                 else:
+                    loop_bboxs += bboxs
                     loop_video_frames.append(video_frames[::-1])
                     loop_faces.append(faces.flip(0))
                     loop_boxes += boxes[::-1]
@@ -305,11 +324,13 @@ class LipsyncPipeline(DiffusionPipeline):
             faces = torch.cat(loop_faces, dim=0)[: len(whisper_chunks)]
             boxes = loop_boxes[: len(whisper_chunks)]
             affine_matrices = loop_affine_matrices[: len(whisper_chunks)]
+            bboxs = loop_bboxs[: len(whisper_chunks)]
         else:
+            print("[LatentSyncWrapper Fix]: trap in else!")
             video_frames = video_frames[: len(whisper_chunks)]
-            faces, boxes, affine_matrices = self.affine_transform_video(video_frames)
+            bboxs, faces, boxes, affine_matrices = self.affine_transform_video(video_frames)
 
-        return video_frames, faces, boxes, affine_matrices
+        return video_frames, bboxs, faces, boxes, affine_matrices
 
     @torch.no_grad()
     def __call__(
@@ -370,8 +391,8 @@ class LipsyncPipeline(DiffusionPipeline):
         audio_samples = read_audio(audio_path)
         video_frames = read_video(video_path, use_decord=False)
 
-        video_frames, faces, boxes, affine_matrices = self.loop_video(whisper_chunks, video_frames)
-
+        video_frames,bboxs, faces, boxes, affine_matrices = self.loop_video(whisper_chunks, video_frames)
+        print("[LatentSyncWrapper Fix]: see loop_video,bboxs's len:{},faces's len:{}".format(len(bboxs), faces.shape))
         synced_video_frames = []
 
         num_channels_latents = self.vae.config.latent_channels
@@ -465,7 +486,7 @@ class LipsyncPipeline(DiffusionPipeline):
             )
             synced_video_frames.append(decoded_latents)
 
-        synced_video_frames = self.restore_video(torch.cat(synced_video_frames), video_frames, boxes, affine_matrices)
+        synced_video_frames = self.restore_video( bboxs,torch.cat(synced_video_frames), video_frames, boxes, affine_matrices)
 
         audio_samples_remain_length = int(synced_video_frames.shape[0] / video_fps * audio_sample_rate)
         audio_samples = audio_samples[:audio_samples_remain_length].cpu().numpy()
